@@ -100,6 +100,23 @@ if data.get("configValid") is not True:
 PY
 }
 
+assert_scaffold_json() {
+  "${VENV_DIR}/bin/python" - "${TMP_DIR}/scaffold.json" <<'PY'
+import json
+import sys
+
+with open(sys.argv[1], "r", encoding="utf-8") as f:
+    data = json.load(f)
+
+if data.get("dryRun") is not True:
+    raise SystemExit(f"unexpected scaffold.dryRun: {data.get('dryRun')!r}")
+if not data.get("serviceName"):
+    raise SystemExit("scaffold response missing serviceName")
+if not isinstance(data.get("generatedFiles"), list) or len(data["generatedFiles"]) == 0:
+    raise SystemExit("scaffold response has no generatedFiles")
+PY
+}
+
 run_api_checks() {
   setup_python_env
   validate_config_loader
@@ -114,6 +131,19 @@ run_api_checks() {
 
   log "checking /api/config"
   curl -fsS "http://127.0.0.1:${API_PORT}/api/config" >"${TMP_DIR}/config.json"
+
+  local smoke_service="smoke-svc-$(date +%H%M%S)"
+  local payload
+  payload="$(cat <<EOF
+{"name":"${smoke_service}","namespace":"demo","image":"ghcr.io/example/${smoke_service}:0.1.0","port":8080,"deployTo":["local"],"dryRun":true}
+EOF
+)"
+
+  log "checking POST /api/services (dryRun)"
+  curl -fsS "http://127.0.0.1:${API_PORT}/api/services" \
+    -H "Content-Type: application/json" \
+    -d "${payload}" >"${TMP_DIR}/scaffold.json"
+  assert_scaffold_json
 
   log "api smoke checks passed"
 }
@@ -168,4 +198,3 @@ main() {
 }
 
 main
-

@@ -6,6 +6,9 @@ This plan adapts your original IDP idea to match the way Genesis was structured:
 - clear generator pipeline
 - validate first, then generate, then raise PR
 
+Current implementation status:
+- Phase 1 (config-driven reconcile + PR automation) is now implemented via `scripts/ci/genesis.py` and `.github/workflows/genesis-reconcile.yml`.
+
 Related:
 - portfolio narrative: `docs/PORTFOLIO_BUILD_GUIDE.md`
 

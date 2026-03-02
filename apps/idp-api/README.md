@@ -20,3 +20,7 @@ Current endpoints:
 - `GET /api/health`
 - `GET /api/config/validate`
 - `GET /api/config`
+- `POST /api/services` (supports `dryRun`)
+
+Required env for PR creation (`dryRun=false`):
+- `GITHUB_TOKEN`

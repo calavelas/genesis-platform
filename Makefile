@@ -1,4 +1,4 @@
-.PHONY: bootstrap up down port-forward port-forward-argocd port-forward-grafana port-forward-prometheus api web validate-config smoke-test smoke-test-api smoke-test-platform
+.PHONY: bootstrap up down port-forward port-forward-argocd port-forward-grafana port-forward-prometheus api web validate-config smoke-test smoke-test-api smoke-test-platform genesis genesis-write
 
 CLUSTER_NAME ?= genesis-local
 
@@ -42,3 +42,11 @@ smoke-test-api:
 
 smoke-test-platform:
 	CLUSTER_NAME=$(CLUSTER_NAME) bash scripts/smoke-test.sh platform
+
+genesis:
+	@echo "Running genesis reconcile (dry-run, no PR)..."
+	apps/idp-api/.venv/bin/python scripts/ci/genesis.py --repo-root .
+
+genesis-write:
+	@echo "Running genesis reconcile and writing generated files to working tree..."
+	apps/idp-api/.venv/bin/python scripts/ci/genesis.py --repo-root . --write-worktree

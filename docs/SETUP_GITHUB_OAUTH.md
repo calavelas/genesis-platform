@@ -17,6 +17,8 @@ Set these in `apps/idp-api/.env` when implemented:
 - `GITHUB_OWNER`
 - `GITHUB_REPO`
 
+For `POST /api/services` with `dryRun=false`, `GITHUB_TOKEN` is required.
+
 ## Notes
 - Browser should never receive privileged GitHub or Kubernetes tokens.
 - PR-based workflow only; no direct writes to `main`.

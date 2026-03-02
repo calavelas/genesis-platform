@@ -1,0 +1,86 @@
+name: publish-service-images
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'services/**'
+      - '.github/workflows/publish-service-images.yml'
+      - 'scripts/ci/discover_changed_services.py'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  discover:
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.discover.outputs.matrix }}
+      has_services: ${{ steps.discover.outputs.has_services }}
+      count: ${{ steps.discover.outputs.count }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install script dependencies
+        run: pip install pyyaml
+
+      - name: Discover changed services
+        id: discover
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            python3 scripts/ci/discover_changed_services.py \
+              --repo-root . \
+              --all-services \
+              --repository-owner "${{ github.repository_owner }}"
+          else
+            python3 scripts/ci/discover_changed_services.py \
+              --repo-root . \
+              --before "${{ github.event.before }}" \
+              --after "${{ github.sha }}" \
+              --repository-owner "${{ github.repository_owner }}"
+          fi
+
+      - name: Summary
+        run: |
+          echo "Services to publish: ${{ steps.discover.outputs.count }}"
+          if [ -n "${{ steps.discover.outputs.skipped }}" ]; then
+            echo "Skipped services:"
+            echo "${{ steps.discover.outputs.skipped }}"
+          fi
+
+  publish:
+    needs: discover
+    if: needs.discover.outputs.has_services == 'true'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJson(needs.discover.outputs.matrix) }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push image
+        uses: docker/build-push-action@v6
+        with:
+          context: ${{ matrix.context }}
+          file: ${{ matrix.dockerfile }}
+          push: true
+          tags: ${{ matrix.image }}

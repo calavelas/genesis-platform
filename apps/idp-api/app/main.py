@@ -1,6 +1,7 @@
 from fastapi import FastAPI, HTTPException
 
 from app.config.loader import build_validation_report, load_all_configs
+from app.scaffold.service import CreateServiceRequest, CreateServiceResponse, create_service
 
 app = FastAPI(title="IDP API", version="0.1.0")
 
@@ -35,3 +36,11 @@ def get_config() -> dict[str, object]:
         "idpConfig": idp_config.model_dump(),
         "servicesConfig": services_config.model_dump(),
     }
+
+
+@app.post("/api/services", response_model=CreateServiceResponse)
+def create_service_endpoint(payload: CreateServiceRequest) -> CreateServiceResponse:
+    try:
+        return create_service(payload)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc

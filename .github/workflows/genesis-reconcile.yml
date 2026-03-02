@@ -1,0 +1,60 @@
+name: genesis-reconcile
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'idp-config.yaml'
+      - 'services-config.yaml'
+      - 'scripts/ci/genesis.py'
+      - '.github/workflows/genesis-reconcile.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  reconcile:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install fastapi pydantic pyyaml jinja2 certifi
+
+      - name: Reconcile from config and open PR
+        id: genesis
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          python3 scripts/ci/genesis.py \
+            --repo-root . \
+            --open-pr
+
+      - name: Summary
+        run: |
+          echo "Changes detected: ${{ steps.genesis.outputs.has_changes }}"
+          echo "Changed services: ${{ steps.genesis.outputs.changed_services }}"
+          echo "Changed files: ${{ steps.genesis.outputs.changed_file_count }}"
+          if [ -n "${{ steps.genesis.outputs.pr_url }}" ]; then
+            echo "PR: ${{ steps.genesis.outputs.pr_url }}"
+          else
+            echo "No PR opened"
+          fi
+
+      - name: Upload reconcile state
+        uses: actions/upload-artifact@v4
+        with:
+          name: genesis-state-${{ github.run_id }}
+          path: ${{ steps.genesis.outputs.state_file }}
+          if-no-files-found: error
