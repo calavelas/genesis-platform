@@ -4,7 +4,6 @@ from __future__ import annotations
 import argparse
 import json
 import os
-import subprocess
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
@@ -155,60 +154,21 @@ def collect_service_files_for_delete(repo_root: Path, service_name: str) -> list
     return sorted(files)
 
 
-def _git_first_commit_date(repo_root: Path, service_name: str) -> str | None:
-    cmd = [
-        "git",
-        "log",
-        "--diff-filter=A",
-        "--follow",
-        "--reverse",
-        "--format=%as",
-        "--",
-        f"SVCS/{service_name}",
-    ]
-    completed = subprocess.run(  # noqa: S603
-        cmd,
-        cwd=str(repo_root),
-        capture_output=True,
-        text=True,
-        check=False,
-    )
-    if completed.returncode != 0:
-        return None
-
-    for line in completed.stdout.splitlines():
-        value = line.strip()
-        if value:
-            return value
-    return None
-
-
-def service_create_date(repo_root: Path, service: Any) -> str:
-    if getattr(service, "createdAt", None):
-        return str(service.createdAt)
-
-    history_date = _git_first_commit_date(repo_root, service.name)
-    if history_date:
-        return history_date
-    return datetime.now(tz=UTC).date().isoformat()
-
-
-def build_service_table_section(repo_root: Path, services: list[Any]) -> str:
+def build_service_table_section(services: list[Any]) -> str:
     lines = [
         README_SVCS_START,
         f"Total Services Running: {len(services)}",
         "",
-        "| Service Name | Template | Create Date |",
-        "| --- | --- | --- |",
+        "| Service Name | Template |",
+        "| --- | --- |",
     ]
 
     for service in sorted(services, key=lambda item: item.name):
         template_name = service.generator.service.template
-        create_date = service_create_date(repo_root, service)
-        lines.append(f"| {service.name} | {template_name} | {create_date} |")
+        lines.append(f"| {service.name} | {template_name} |")
 
     if not services:
-        lines.append("| - | - | - |")
+        lines.append("| - | - |")
 
     lines.append(README_SVCS_END)
     return "\n".join(lines)
@@ -220,7 +180,7 @@ def update_readme_service_table(repo_root: Path, services: list[Any]) -> bytes |
         return None
 
     current = readme_path.read_text(encoding="utf-8")
-    section = build_service_table_section(repo_root, services)
+    section = build_service_table_section(services)
 
     if README_SVCS_START in current and README_SVCS_END in current:
         start = current.index(README_SVCS_START)
