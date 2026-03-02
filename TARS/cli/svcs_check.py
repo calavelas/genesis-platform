@@ -150,6 +150,72 @@ def collect_service_files_for_delete(repo_root: Path, service_name: str) -> list
     return sorted(files)
 
 
+def classify_service_changes(
+    results: list[ServiceReconcileResult],
+    removed_results: list[RemovedServiceResult],
+) -> tuple[list[str], list[str], list[str]]:
+    added_services: list[str] = []
+    updated_services: list[str] = []
+
+    for result in results:
+        if not result.needs_reconcile:
+            continue
+        if len(result.missing_files) == result.expected_file_count and len(result.changed_files) == 0:
+            added_services.append(result.name)
+        else:
+            updated_services.append(result.name)
+
+    removed_services = sorted(removed.name for removed in removed_results)
+    return sorted(added_services), sorted(updated_services), removed_services
+
+
+def build_pr_title(
+    *,
+    added_services: list[str],
+    updated_services: list[str],
+    removed_services: list[str],
+) -> str:
+    parts: list[str] = []
+    if updated_services:
+        parts.append(f"Updating {len(updated_services)}")
+    if added_services:
+        parts.append(f"Adding {len(added_services)}")
+    if removed_services:
+        parts.append(f"Removing {len(removed_services)}")
+    if not parts:
+        parts.append("Updating 0")
+
+    total = len(set([*added_services, *updated_services, *removed_services]))
+    total_label = "Service" if total == 1 else "Services"
+    return f"TARS : {' / '.join(parts)} ({total} {total_label})"
+
+
+def build_pr_body(
+    *,
+    added_services: list[str],
+    updated_services: list[str],
+    removed_services: list[str],
+    upsert_files: dict[str, bytes],
+    delete_files: list[str],
+) -> str:
+    def format_list(values: list[str]) -> str:
+        return ", ".join(values) if values else "none"
+
+    total = len(set([*added_services, *updated_services, *removed_services]))
+    lines = [
+        "Automated reconcile from `ENDR.yaml` and `SVCS.yaml`.",
+        "",
+        "Summary:",
+        f"- Total changed services: {total}",
+        f"- Added services ({len(added_services)}): {format_list(added_services)}",
+        f"- Updated services ({len(updated_services)}): {format_list(updated_services)}",
+        f"- Removed services ({len(removed_services)}): {format_list(removed_services)}",
+        f"- Upsert files: {len(upsert_files)}",
+        f"- Delete files: {len(delete_files)}",
+    ]
+    return "\n".join(lines)
+
+
 def reconcile(
     repo_root: Path, runtime_dir: Path
 ) -> tuple[Any, list[ServiceReconcileResult], dict[str, bytes], list[str], list[RemovedServiceResult]]:
@@ -228,7 +294,9 @@ def open_reconcile_pr(
     idp_config: Any,
     upsert_files: dict[str, bytes],
     delete_files: list[str],
-    changed_services: list[str],
+    added_services: list[str],
+    updated_services: list[str],
+    removed_services: list[str],
     github_token: str,
     branch_prefix: str,
     base_branch_override: str | None,
@@ -267,12 +335,17 @@ def open_reconcile_pr(
             )
 
         pr = github_client.create_pull_request(
-            title="feat(tars): reconcile generated service and GitOps assets",
-            body=(
-                "Automated reconcile from `ENDR.yaml` and `SVCS.yaml`.\n\n"
-                f"Changed services ({len(changed_services)}): {', '.join(changed_services)}\n"
-                f"Upsert files: {len(upsert_files)}\n"
-                f"Delete files: {len(delete_files)}"
+            title=build_pr_title(
+                added_services=added_services,
+                updated_services=updated_services,
+                removed_services=removed_services,
+            ),
+            body=build_pr_body(
+                added_services=added_services,
+                updated_services=updated_services,
+                removed_services=removed_services,
+                upsert_files=upsert_files,
+                delete_files=delete_files,
             ),
             head=branch_name,
             base=base_branch,
@@ -381,6 +454,7 @@ def main(argv: list[str] | None = None) -> int:
             *[removed.name for removed in removed_results],
         }
     )
+    added_services, updated_services, removed_services = classify_service_changes(results, removed_results)
 
     pr_branch: str | None = None
     pr_number: int | None = None
@@ -393,7 +467,9 @@ def main(argv: list[str] | None = None) -> int:
             idp_config=idp_config,
             upsert_files=upsert_files,
             delete_files=delete_files,
-            changed_services=changed_services,
+            added_services=added_services,
+            updated_services=updated_services,
+            removed_services=removed_services,
             github_token=token,
             branch_prefix=args.branch_prefix,
             base_branch_override=args.base_branch or None,

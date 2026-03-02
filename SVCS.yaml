@@ -1,25 +1,25 @@
-services:
-- name: endr-svc-demo
-  namespace: demo
-  deployTo:
-  - local
-  generator:
-    service:
-      template: python-fastapi
-    gitops:
-      template: helm-service
-  overrides:
-    image: calavelas/endr-svc-demo:0.0.1
-    port: 8080
-    env:
-      LOG_LEVEL: info
-    resources:
-      requests:
-        cpu: 100m
-        memory: 128Mi
-      limits:
-        cpu: 250m
-        memory: 256Mi
-    ingress:
-      enabled: true
-      host: endr-svc-demo.local
+services: []
+# - name: endr-svc-demo
+#   namespace: demo
+#   deployTo:
+#   - local
+#   generator:
+#     service:
+#       template: python-fastapi
+#     gitops:
+#       template: helm-service
+#   overrides:
+#     image: calavelas/endr-svc-demo:0.0.1
+#     port: 8080
+#     env:
+#       LOG_LEVEL: info
+#     resources:
+#       requests:
+#         cpu: 100m
+#         memory: 128Mi
+#       limits:
+#         cpu: 250m
+#         memory: 256Mi
+#     ingress:
+#       enabled: true
+#       host: endr-svc-demo.local
