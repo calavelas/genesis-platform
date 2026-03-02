@@ -184,7 +184,7 @@ jobs:
             echo "$SKIPPED_SERVICES"
           fi
           {
-            echo "### SVCS Publish Discovery"
+            echo "### Services Changes Discovery Summary"
             echo ""
             echo "| Item | Value |"
             echo "| --- | --- |"
@@ -196,7 +196,7 @@ jobs:
             echo "#### Source service paths changed (${{ steps.detect_source_services.outputs.service_count || '0' }})"
             as_bullets_csv "${{ steps.detect_source_services.outputs.services }}"
             echo ""
-            echo "#### Publish discovery"
+            echo "#### Services Publish Discovery"
             echo "- Selected for image publish (${{ steps.discover.outputs.count }})"
             as_bullets_csv "$PUBLISH_SERVICES" "  "
             echo "- Skipped services (with reason)"
