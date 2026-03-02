@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 
-app = FastAPI(title="endr-svc-demo")
+app = FastAPI(title="cooper")
 
 
 @app.get("/healthz")

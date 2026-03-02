@@ -1,6 +1,6 @@
 image:
-  repository: calavelas/endr-svc-demo
-  tag: git-123abcd
+  repository: calavelas/cooper
+  tag: 0.1.0
   pullPolicy: IfNotPresent
 
 service:

@@ -46,5 +46,5 @@ Total Services Running: 1
 
 | Service Name | Template |
 | --- | --- |
-| endr-svc-demo | python-fastapi |
+| cooper | python-fastapi |
 <!-- TARS:SVCS_TABLE_END -->
