@@ -37,8 +37,9 @@
 - `tars-init.yml` publishes job annotations (`::notice::`) and a Markdown job summary with changed service/file details.
 - ArgoCD child app template now sets `syncOptions: [CreateNamespace=true]`.
 - Workflow `tars-cleanup.yml` deletes merged TARS-generated source branches.
-- On merge to `main`, workflow `svcs-publish.yml` detects changed services, builds images from `SVCS/<name>/Dockerfile`, and pushes tags from each `SVCS/<name>/chart/values.yaml` to Docker Hub.
-- The same workflow also supports manual `workflow_dispatch` to publish all services in one run.
+- On merge to `main`, workflow `svcs-build.yml` detects changed source services, auto-sets `git-<sha>` image tags, builds images from `SVCS/<name>/Dockerfile`, pushes to Docker Hub, and persists updated tags back to repo.
+- Workflow `svcs-build.yml` also supports manual `workflow_dispatch` to publish all services in one run.
+- Workflow `svcs-tagged.yml` runs on Git tags in format `servicename.Vx.x.x`, builds image from `SVCS/servicename`, and publishes Docker tag `Vx.x.x`.
 
 Optional branch cleanup toggle:
 - Set repo variable `TARS_DELETE_SOURCE_BRANCH_ON_MERGE=false` to keep merged TARS branches.

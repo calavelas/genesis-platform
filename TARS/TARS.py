@@ -46,8 +46,28 @@ def get_changed_files(repo_root: Path, before: str, after: str) -> list[str]:
 
 def service_name_from_path(file_path: str) -> str | None:
     parts = Path(file_path).parts
-    if len(parts) >= 3 and parts[0] == "SVCS":
-        return parts[1]
+    if len(parts) < 3 or parts[0] != "SVCS":
+        return None
+
+    service_name = parts[1]
+    if not service_name or service_name == "examples":
+        return None
+
+    source_roots = {"app", "src", "cmd", "internal", "pkg", "lib"}
+    source_files = {
+        "Dockerfile",
+        "requirements.txt",
+        "pyproject.toml",
+        "package.json",
+        "package-lock.json",
+        "go.mod",
+        "go.sum",
+        "Cargo.toml",
+        "Cargo.lock",
+    }
+    marker = parts[2]
+    if marker in source_roots or marker in source_files:
+        return service_name
     return None
 
 

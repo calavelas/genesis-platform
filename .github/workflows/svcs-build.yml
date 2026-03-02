@@ -1,0 +1,221 @@
+name: svcs-build
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'SVCS/**'
+      - '.github/workflows/svcs-build.yml'
+      - 'TARS/TARS.py'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  discover:
+    if: ${{ github.event_name != 'push' || github.actor != 'github-actions[bot]' }}
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.discover.outputs.matrix }}
+      has_services: ${{ steps.discover.outputs.has_services }}
+      count: ${{ steps.discover.outputs.count }}
+      services: ${{ steps.detect_source_services.outputs.services }}
+      service_count: ${{ steps.detect_source_services.outputs.service_count }}
+      tag: ${{ steps.tag.outputs.tag }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install script dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install fastapi pydantic pyyaml jinja2 certifi
+
+      - name: Validate Docker Hub secrets
+        run: |
+          test -n "${{ secrets.DOCKERHUB_USERNAME }}" || (echo "Missing secret: DOCKERHUB_USERNAME" && exit 1)
+          test -n "${{ secrets.DOCKERHUB_PASSWORD }}" || (echo "Missing secret: DOCKERHUB_PASSWORD" && exit 1)
+
+      - name: Detect changed service source paths
+        id: detect_source_services
+        run: |
+          set -euo pipefail
+
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "services=" >> "$GITHUB_OUTPUT"
+            echo "service_count=0" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          BEFORE="${{ github.event.before }}"
+          AFTER="${{ github.sha }}"
+
+          if [ -z "$AFTER" ]; then
+            AFTER="$(git rev-parse HEAD)"
+          fi
+
+          if [ -z "$BEFORE" ] || [[ "$BEFORE" =~ ^0+$ ]]; then
+            CHANGED_FILES="$(git diff-tree --no-commit-id --name-only -r "$AFTER")"
+          else
+            CHANGED_FILES="$(git diff --name-only "$BEFORE" "$AFTER")"
+          fi
+
+          SERVICES="$(printf "%s\n" "$CHANGED_FILES" | awk -F/ '$1=="SVCS" && $2!="" && $2!="examples" && ($3=="app" || $3=="src" || $3=="cmd" || $3=="internal" || $3=="pkg" || $3=="lib" || $3=="Dockerfile" || $3=="requirements.txt" || $3=="pyproject.toml" || $3=="package.json" || $3=="package-lock.json" || $3=="go.mod" || $3=="go.sum" || $3=="Cargo.toml" || $3=="Cargo.lock") { print $2 }' | sort -u | paste -sd, -)"
+
+          COUNT=0
+          if [ -n "$SERVICES" ]; then
+            COUNT="$(printf "%s\n" "$SERVICES" | tr ',' '\n' | sed '/^$/d' | wc -l | tr -d ' ')"
+          fi
+
+          echo "services=$SERVICES" >> "$GITHUB_OUTPUT"
+          echo "service_count=$COUNT" >> "$GITHUB_OUTPUT"
+
+      - name: Compute image tag
+        id: tag
+        run: |
+          set -euo pipefail
+          echo "tag=git-${GITHUB_SHA:0:7}" >> "$GITHUB_OUTPUT"
+
+      - name: Update tags in SVCS and regenerate manifests
+        if: ${{ steps.detect_source_services.outputs.services != '' }}
+        run: |
+          set -euo pipefail
+          python3 TARS/TARS.py update-image-tags \
+            --repo-root . \
+            --services "${{ steps.detect_source_services.outputs.services }}" \
+            --tag "${{ steps.tag.outputs.tag }}" \
+            --allow-missing
+          python3 TARS/TARS.py svcs-check \
+            --repo-root . \
+            --write-worktree > /tmp/tars-svcs-sync.json
+
+      - name: Discover changed services
+        id: discover
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            python3 TARS/TARS.py discover-changed-services \
+              --repo-root . \
+              --all-services \
+              --registry dockerhub \
+              --image-owner "${{ secrets.DOCKERHUB_USERNAME }}"
+          else
+            python3 TARS/TARS.py discover-changed-services \
+              --repo-root . \
+              --before "${{ github.event.before }}" \
+              --after "${{ github.sha }}" \
+              --registry dockerhub \
+              --image-owner "${{ secrets.DOCKERHUB_USERNAME }}"
+          fi
+
+      - name: Summary
+        run: |
+          echo "::notice title=SVCS Source Services::${{ steps.detect_source_services.outputs.services || 'none' }}"
+          echo "::notice title=SVCS Publish Tag::${{ steps.tag.outputs.tag }}"
+          echo "Services to publish: ${{ steps.discover.outputs.count }}"
+          if [ -n "${{ steps.discover.outputs.skipped }}" ]; then
+            echo "Skipped services:"
+            echo "${{ steps.discover.outputs.skipped }}"
+          fi
+          {
+            echo "### SVCS Publish Discovery"
+            echo ""
+            echo "- Source services changed: \`${{ steps.detect_source_services.outputs.service_count || '0' }}\`"
+            echo "- Source service list: \`${{ steps.detect_source_services.outputs.services || 'none' }}\`"
+            echo "- Publish tag: \`${{ steps.tag.outputs.tag }}\`"
+            echo "- Services to publish: \`${{ steps.discover.outputs.count }}\`"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  publish:
+    name: Build and Publish (${{ matrix.service }})
+    needs: discover
+    if: needs.discover.result == 'success' && needs.discover.outputs.has_services == 'true'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJson(needs.discover.outputs.matrix || '{"include":[]}') }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          registry: docker.io
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_PASSWORD }}
+
+      - name: Build and push image
+        uses: docker/build-push-action@v6
+        with:
+          context: ${{ matrix.context }}
+          file: ${{ matrix.dockerfile }}
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: docker.io/${{ secrets.DOCKERHUB_USERNAME }}/${{ matrix.repo_name }}:${{ matrix.image_tag }}
+
+  persist-tags:
+    needs:
+      - discover
+      - publish
+    if: >
+      needs.discover.result == 'success' &&
+      needs.discover.outputs.has_services == 'true' &&
+      needs.discover.outputs.services != '' &&
+      needs.publish.result == 'success' &&
+      github.event_name == 'push' &&
+      github.ref_name == 'main'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install script dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install fastapi pydantic pyyaml jinja2 certifi
+
+      - name: Apply publish tag to config
+        run: |
+          set -euo pipefail
+          python3 TARS/TARS.py update-image-tags \
+            --repo-root . \
+            --services "${{ needs.discover.outputs.services }}" \
+            --tag "${{ needs.discover.outputs.tag }}" \
+            --allow-missing
+          python3 TARS/TARS.py svcs-check \
+            --repo-root . \
+            --write-worktree > /tmp/tars-svcs-sync.json
+
+      - name: Commit tag updates
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          if git diff --cached --quiet; then
+            echo "No tag updates to commit."
+            exit 0
+          fi
+          git commit -m "TARS : Persist image tag ${{ needs.discover.outputs.tag }} for ${{ needs.discover.outputs.service_count }} service(s)"
+          git push origin HEAD:${{ github.ref_name }}
+
+      - name: Summary
+        run: |
+          echo "::notice title=SVCS Tag Persisted::tag=${{ needs.discover.outputs.tag }}, services=${{ needs.discover.outputs.services }}"
