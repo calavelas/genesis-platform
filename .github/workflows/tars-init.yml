@@ -1,4 +1,4 @@
-name: tars-init
+name: TARS Automate Service Generator
 
 on:
   push:
@@ -17,7 +17,7 @@ permissions:
   pull-requests: write
 
 jobs:
-  reconcile:
+  tars-reconcile:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
