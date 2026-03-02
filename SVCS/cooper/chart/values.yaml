@@ -1,6 +1,6 @@
 image:
   repository: calavelas/cooper
-  tag: 0.1.0
+  tag: git-8f6f4de
   pullPolicy: IfNotPresent
 
 service:
