@@ -1,25 +1,41 @@
 services:
-  - name: hello-service
-    namespace: demo
-    deployTo:
-      - local
-    generator:
-      service:
-        template: python-fastapi
-      gitops:
-        template: helm-service
-    overrides:
-      image: ghcr.io/example/hello-service:0.1.0
-      port: 8080
-      env:
-        LOG_LEVEL: info
-      resources:
-        requests:
-          cpu: 100m
-          memory: 128Mi
-        limits:
-          cpu: 250m
-          memory: 256Mi
-      ingress:
-        enabled: false
-        host: hello.local
+- name: hello-service
+  namespace: demo
+  deployTo:
+  - local
+  generator:
+    service:
+      template: python-fastapi
+    gitops:
+      template: helm-service
+  overrides:
+    image: ghcr.io/example/hello-service:0.1.0
+    port: 8080
+    env:
+      LOG_LEVEL: info
+    resources:
+      requests:
+        cpu: 100m
+        memory: 128Mi
+      limits:
+        cpu: 250m
+        memory: 256Mi
+    ingress:
+      enabled: false
+      host: hello.local
+- name: demo-pr-0302172827
+  namespace: demo
+  deployTo:
+  - local
+  generator:
+    service:
+      template: python-fastapi
+    gitops:
+      template: helm-service
+  overrides:
+    port: 8080
+    env: {}
+    ingress:
+      enabled: true
+      host: demo-pr-0302172827.local
+    image: ghcr.io/calavelas/demo-pr-0302172827:0.1.0

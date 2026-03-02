@@ -1,0 +1,31 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: demo-pr-0302172827
+  labels:
+    app.kubernetes.io/name: demo-pr-0302172827
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: demo-pr-0302172827
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: demo-pr-0302172827
+    spec:
+      containers:
+        - name: demo-pr-0302172827
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          ports:
+            - containerPort: 8080
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: 8080
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 8080
+          resources:
+{{ toYaml .Values.resources | indent 12 }}
