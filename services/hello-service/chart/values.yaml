@@ -1,5 +1,5 @@
 image:
-  repository: ghcr.io/example/hello-service
+  repository: calavelas/hello-service
   tag: 0.1.0
   pullPolicy: IfNotPresent
 
