@@ -1,4 +1,4 @@
-name: tars-init
+name: TARS - Init and Reconcile
 
 on:
   push:

@@ -1,4 +1,4 @@
-name: svcs-build
+name: TARS - Build and Deploy
 
 on:
   push:
