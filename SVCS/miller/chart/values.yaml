@@ -1,6 +1,6 @@
 image:
   repository: calavelas/miller
-  tag: git-9ea1e7b
+  tag: git-2de2dec
   pullPolicy: IfNotPresent
 
 service:
