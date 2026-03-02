@@ -38,3 +38,13 @@ Local-first GitOps Internal Developer Platform demo with:
 - `make -f SCPT/Makefile smoke-test`
 - `make -f SCPT/Makefile api`
 - `make -f SCPT/Makefile web`
+
+### SVCS (Service) List
+
+<!-- TARS:SVCS_TABLE_START -->
+Total Services Running: 0
+
+| Service Name | Template | Create Date |
+| --- | --- | --- |
+| - | - | - |
+<!-- TARS:SVCS_TABLE_END -->

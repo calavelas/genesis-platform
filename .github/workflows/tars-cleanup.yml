@@ -1,0 +1,38 @@
+name: tars-cleanup
+
+on:
+  pull_request:
+    types:
+      - closed
+
+permissions:
+  contents: write
+  pull-requests: read
+
+jobs:
+  cleanup:
+    if: >
+      github.event.pull_request.merged == true &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      (
+        startsWith(github.event.pull_request.title, 'TARS :') ||
+        startsWith(github.event.pull_request.head.ref, 'idp/tars-svcs-check')
+      )
+    runs-on: ubuntu-latest
+    steps:
+      - name: Delete merged source branch
+        if: ${{ vars.TARS_DELETE_SOURCE_BRANCH_ON_MERGE != 'false' }}
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const branch = context.payload.pull_request.head.ref;
+            await github.rest.git.deleteRef({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              ref: `heads/${branch}`,
+            });
+            core.info(`Deleted merged branch: ${branch}`);
+
+      - name: Skip branch deletion (flag disabled)
+        if: ${{ vars.TARS_DELETE_SOURCE_BRANCH_ON_MERGE == 'false' }}
+        run: echo "Skipping branch deletion because vars.TARS_DELETE_SOURCE_BRANCH_ON_MERGE=false"

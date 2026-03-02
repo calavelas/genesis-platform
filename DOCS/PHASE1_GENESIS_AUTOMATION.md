@@ -1,4 +1,4 @@
-# Phase 1 - TARS SVCS Check Automation (Config -> Generated PR)
+# Phase 1 - TARS SVCS Check Automation (Single-PR GitOps Flow)
 
 This phase implements the config-driven GitOps automation path without UI/API input forms.
 
@@ -9,7 +9,7 @@ When `ENDR.yaml` or `SVCS.yaml` changes:
 2. Render expected service + GitOps files from templates.
 3. Compare against repository files.
 4. Write a Genesis-style state file.
-5. Open a Pull Request with only the generated drift fixes.
+5. Update generated files in the same Pull Request branch before merge.
 
 ## Script
 
@@ -52,15 +52,16 @@ Service removal handling:
 Workflow: `.github/workflows/tars-init.yml`
 
 Trigger:
-- `push` to `main` when changed paths include:
+- `pull_request` (opened/synchronize/reopened) when changed paths include:
   - `ENDR.yaml`
   - `SVCS.yaml`
 - manual `workflow_dispatch`
 
 Behavior:
-- Runs `TARS/TARS.py svcs-check --open-pr`
-- If drift exists, creates branch + PR automatically.
-- If no drift exists, exits cleanly with no PR.
+- Runs `TARS/TARS.py svcs-check --write-worktree`
+- If drift exists, commits generated changes back to the same PR branch.
+- PR merge is then a single source-of-truth merge (no second reconcile PR).
+- Emits GitHub job annotations and job summary with added/updated/removed service details.
 
 ## Local test
 

@@ -4,6 +4,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import subprocess
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
@@ -28,6 +29,10 @@ class ServiceReconcileResult:
 class RemovedServiceResult:
     name: str
     deleted_files: list[str]
+
+
+README_SVCS_START = "<!-- TARS:SVCS_TABLE_START -->"
+README_SVCS_END = "<!-- TARS:SVCS_TABLE_END -->"
 
 
 def write_github_output(values: dict[str, str]) -> None:
@@ -148,6 +153,86 @@ def collect_service_files_for_delete(repo_root: Path, service_name: str) -> list
                 files.add(file_path.relative_to(repo_root).as_posix())
 
     return sorted(files)
+
+
+def _git_first_commit_date(repo_root: Path, service_name: str) -> str | None:
+    cmd = [
+        "git",
+        "log",
+        "--diff-filter=A",
+        "--follow",
+        "--reverse",
+        "--format=%as",
+        "--",
+        f"SVCS/{service_name}",
+    ]
+    completed = subprocess.run(  # noqa: S603
+        cmd,
+        cwd=str(repo_root),
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if completed.returncode != 0:
+        return None
+
+    for line in completed.stdout.splitlines():
+        value = line.strip()
+        if value:
+            return value
+    return None
+
+
+def service_create_date(repo_root: Path, service: Any) -> str:
+    if getattr(service, "createdAt", None):
+        return str(service.createdAt)
+
+    history_date = _git_first_commit_date(repo_root, service.name)
+    if history_date:
+        return history_date
+    return datetime.now(tz=UTC).date().isoformat()
+
+
+def build_service_table_section(repo_root: Path, services: list[Any]) -> str:
+    lines = [
+        README_SVCS_START,
+        f"Total Services Running: {len(services)}",
+        "",
+        "| Service Name | Template | Create Date |",
+        "| --- | --- | --- |",
+    ]
+
+    for service in sorted(services, key=lambda item: item.name):
+        template_name = service.generator.service.template
+        create_date = service_create_date(repo_root, service)
+        lines.append(f"| {service.name} | {template_name} | {create_date} |")
+
+    if not services:
+        lines.append("| - | - | - |")
+
+    lines.append(README_SVCS_END)
+    return "\n".join(lines)
+
+
+def update_readme_service_table(repo_root: Path, services: list[Any]) -> bytes | None:
+    readme_path = repo_root / "README.md"
+    if not readme_path.exists():
+        return None
+
+    current = readme_path.read_text(encoding="utf-8")
+    section = build_service_table_section(repo_root, services)
+
+    if README_SVCS_START in current and README_SVCS_END in current:
+        start = current.index(README_SVCS_START)
+        end = current.index(README_SVCS_END) + len(README_SVCS_END)
+        updated = f"{current[:start].rstrip()}\n\n{section}\n{current[end:].lstrip()}"
+    else:
+        suffix = "\n" if current.endswith("\n") else "\n\n"
+        updated = f"{current}{suffix}{section}\n"
+
+    if updated == current:
+        return None
+    return updated.encode("utf-8")
 
 
 def classify_service_changes(
@@ -285,6 +370,10 @@ def reconcile(
             RemovedServiceResult(name=removed_service, deleted_files=deleted_files)
         )
 
+    readme_content = update_readme_service_table(repo_root, services_config.services)
+    if readme_content is not None:
+        upsert_files["README.md"] = readme_content
+
     return idp_config, results, upsert_files, sorted(set(delete_files)), removed_results
 
 
@@ -364,6 +453,9 @@ def build_summary(
     upsert_files: dict[str, bytes],
     delete_files: list[str],
     changed_services: list[str],
+    added_services: list[str],
+    updated_services: list[str],
+    removed_services: list[str],
     pr_branch: str | None = None,
     pr_number: int | None = None,
     pr_url: str | None = None,
@@ -375,6 +467,11 @@ def build_summary(
         "removedServiceCount": len(removed_results),
         "changedServiceCount": len(changed_services),
         "changedServices": changed_services,
+        "addedServiceCount": len(added_services),
+        "addedServices": added_services,
+        "updatedServiceCount": len(updated_services),
+        "updatedServices": updated_services,
+        "removedServiceNames": removed_services,
         "changedFileCount": len(upsert_files) + len(delete_files),
         "upsertFileCount": len(upsert_files),
         "deleteFileCount": len(delete_files),
@@ -483,6 +580,9 @@ def main(argv: list[str] | None = None) -> int:
         upsert_files=upsert_files,
         delete_files=delete_files,
         changed_services=changed_services,
+        added_services=added_services,
+        updated_services=updated_services,
+        removed_services=removed_services,
         pr_branch=pr_branch,
         pr_number=pr_number,
         pr_url=pr_url,
@@ -495,8 +595,12 @@ def main(argv: list[str] | None = None) -> int:
             "has_changes": "true" if (upsert_files or delete_files) else "false",
             "changed_services": ",".join(changed_services),
             "changed_service_count": str(len(changed_services)),
-            "removed_services": ",".join(sorted(removed.name for removed in removed_results)),
-            "removed_service_count": str(len(removed_results)),
+            "added_services": ",".join(added_services),
+            "added_service_count": str(len(added_services)),
+            "updated_services": ",".join(updated_services),
+            "updated_service_count": str(len(updated_services)),
+            "removed_services": ",".join(removed_services),
+            "removed_service_count": str(len(removed_services)),
             "changed_file_count": str(len(upsert_files) + len(delete_files)),
             "upsert_file_count": str(len(upsert_files)),
             "delete_file_count": str(len(delete_files)),

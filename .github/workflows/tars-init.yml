@@ -1,14 +1,15 @@
-name: TARS Automate Service Generator
+name: tars-init
 
 on:
-  push:
-    branches:
-      - main
+  pull_request:
+    types:
+      - opened
+      - synchronize
+      - reopened
     paths:
       - 'ENDR.yaml'
       - 'SVCS.yaml'
       - 'TARS/**'
-      - 'TARS/TARS.py'
       - '.github/workflows/tars-init.yml'
   workflow_dispatch:
 
@@ -22,6 +23,9 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.ref || github.ref_name }}
 
       - name: Setup Python
         uses: actions/setup-python@v5
@@ -38,22 +42,59 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          set -euo pipefail
           python3 TARS/TARS.py svcs-check \
             --repo-root . \
-            --open-pr
+            --write-worktree | tee tars-svcs-check.json
 
-      - name: Summary
+      - name: TARS Summary
         run: |
-          echo "Changes detected: ${{ steps.svcs_check.outputs.has_changes }}"
-          echo "Changed services: ${{ steps.svcs_check.outputs.changed_services }}"
-          echo "Removed services: ${{ steps.svcs_check.outputs.removed_services }}"
-          echo "Changed files: ${{ steps.svcs_check.outputs.changed_file_count }}"
-          echo "Deleted files: ${{ steps.svcs_check.outputs.delete_file_count }}"
-          if [ -n "${{ steps.svcs_check.outputs.pr_url }}" ]; then
-            echo "PR: ${{ steps.svcs_check.outputs.pr_url }}"
-          else
-            echo "No PR opened"
+          echo "::notice title=TARS SVCS Check::changes=${{ steps.svcs_check.outputs.has_changes }}, files=${{ steps.svcs_check.outputs.changed_file_count }}, services=${{ steps.svcs_check.outputs.changed_service_count }}"
+          echo "::notice title=TARS Added Services::${{ steps.svcs_check.outputs.added_services || 'none' }}"
+          echo "::notice title=TARS Updated Services::${{ steps.svcs_check.outputs.updated_services || 'none' }}"
+          echo "::notice title=TARS Removed Services::${{ steps.svcs_check.outputs.removed_services || 'none' }}"
+
+          {
+            echo "### TARS SVCS Check"
+            echo ""
+            echo "- Changes detected: \`${{ steps.svcs_check.outputs.has_changes }}\`"
+            echo "- Changed service count: \`${{ steps.svcs_check.outputs.changed_service_count }}\`"
+            echo "- Added service count: \`${{ steps.svcs_check.outputs.added_service_count }}\`"
+            echo "- Updated service count: \`${{ steps.svcs_check.outputs.updated_service_count }}\`"
+            echo "- Removed service count: \`${{ steps.svcs_check.outputs.removed_service_count }}\`"
+            echo "- Changed file count: \`${{ steps.svcs_check.outputs.changed_file_count }}\`"
+            echo "- Upsert file count: \`${{ steps.svcs_check.outputs.upsert_file_count }}\`"
+            echo "- Delete file count: \`${{ steps.svcs_check.outputs.delete_file_count }}\`"
+            echo ""
+            echo "- Added services: \`${{ steps.svcs_check.outputs.added_services || 'none' }}\`"
+            echo "- Updated services: \`${{ steps.svcs_check.outputs.updated_services || 'none' }}\`"
+            echo "- Removed services: \`${{ steps.svcs_check.outputs.removed_services || 'none' }}\`"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Commit generated updates to PR branch
+        if: >
+          github.event_name == 'pull_request' &&
+          github.event.pull_request.head.repo.full_name == github.repository &&
+          steps.svcs_check.outputs.has_changes == 'true'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          if git diff --cached --quiet; then
+            echo "No staged changes after svcs-check."
+            exit 0
           fi
+          git commit -m "TARS : Sync generated assets from SVCS.yaml"
+          git push origin HEAD:${{ github.event.pull_request.head.ref }}
+
+      - name: Fork PR cannot be auto-synced
+        if: >
+          github.event_name == 'pull_request' &&
+          github.event.pull_request.head.repo.full_name != github.repository &&
+          steps.svcs_check.outputs.has_changes == 'true'
+        run: |
+          echo "::warning title=TARS Sync Blocked::This pull_request comes from a fork. Commit generated files manually in the PR branch."
+          exit 1
 
       - name: Upload reconcile state
         uses: actions/upload-artifact@v4

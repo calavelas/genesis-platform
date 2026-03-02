@@ -1,6 +1,7 @@
 services: []
 # - name: endr-svc-demo
 #   namespace: demo
+#   createdAt: 2026-03-02
 #   deployTo:
 #   - local
 #   generator:

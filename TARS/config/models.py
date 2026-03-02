@@ -1,4 +1,5 @@
 import re
+from datetime import datetime
 
 from pydantic import BaseModel, Field, field_validator, model_validator
 
@@ -110,6 +111,7 @@ class ServiceOverrides(BaseModel):
 class ServiceEntry(BaseModel):
     name: str
     namespace: str
+    createdAt: str | None = None
     deployTo: list[str] = Field(default_factory=list)
     generator: ServiceGenerator
     overrides: ServiceOverrides = Field(default_factory=ServiceOverrides)
@@ -140,6 +142,17 @@ class ServiceEntry(BaseModel):
         for environment in value:
             if not environment.strip():
                 raise ValueError("environment values must not be blank")
+        return value
+
+    @field_validator("createdAt")
+    @classmethod
+    def validate_created_at(cls, value: str | None) -> str | None:
+        if value is None:
+            return value
+        try:
+            datetime.strptime(value, "%Y-%m-%d")
+        except ValueError as exc:
+            raise ValueError("must be YYYY-MM-DD") from exc
         return value
 
 

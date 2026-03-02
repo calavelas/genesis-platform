@@ -33,10 +33,15 @@
   - `dryRun: false` -> render + create branch + commit files + open GitHub PR.
 
 ## CI/CD Notes
-- Workflow `tars-init.yml` runs on config-file changes and opens a reconcile PR using `TARS/TARS.py svcs-check`.
+- Workflow `tars-init.yml` runs on PR changes to `ENDR.yaml`/`SVCS.yaml`, executes `TARS/TARS.py svcs-check --write-worktree`, and auto-commits generated assets back to the same PR branch.
+- `tars-init.yml` publishes job annotations (`::notice::`) and a Markdown job summary with changed service/file details.
 - ArgoCD child app template now sets `syncOptions: [CreateNamespace=true]`.
+- Workflow `tars-cleanup.yml` deletes merged TARS-generated source branches.
 - On merge to `main`, workflow `svcs-publish.yml` detects changed services, builds images from `SVCS/<name>/Dockerfile`, and pushes tags from each `SVCS/<name>/chart/values.yaml` to Docker Hub.
 - The same workflow also supports manual `workflow_dispatch` to publish all services in one run.
+
+Optional branch cleanup toggle:
+- Set repo variable `TARS_DELETE_SOURCE_BRANCH_ON_MERGE=false` to keep merged TARS branches.
 
 Required repo secrets for Docker Hub publish:
 - `DOCKERHUB_USERNAME`
