@@ -40,6 +40,13 @@ Then it compares expected content with repo files:
 
 If file is missing or content differs, it is marked for reconcile and included in PR changes.
 
+Service removal handling:
+- If a service exists in repo-managed paths but is removed from `services-config.yaml`, `genesis.py` marks it as removed and stages file deletions.
+- Deletions include:
+  - `platform/clusters/local/apps/<service>.yaml`
+  - `services/<service>/**`
+- The generated PR will remove these files so ArgoCD prunes the app in GitOps flow.
+
 ## GitHub Actions flow
 
 Workflow: `.github/workflows/genesis-reconcile.yml`

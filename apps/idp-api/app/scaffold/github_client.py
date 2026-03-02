@@ -129,6 +129,26 @@ class GitHubClient:
         path = f"/repos/{self.owner}/{self.repo}/contents/{encoded_path}"
         self._request("PUT", path, payload, expected_statuses=(200, 201))
 
+    def delete_file(
+        self,
+        branch: str,
+        file_path: str,
+        commit_message: str,
+    ) -> bool:
+        existing_sha = self._get_content_sha(branch, file_path)
+        if not existing_sha:
+            return False
+
+        payload: dict[str, Any] = {
+            "message": commit_message,
+            "sha": existing_sha,
+            "branch": branch,
+        }
+        encoded_path = parse.quote(file_path, safe="/")
+        path = f"/repos/{self.owner}/{self.repo}/contents/{encoded_path}"
+        self._request("DELETE", path, payload, expected_statuses=(200,))
+        return True
+
     def create_pull_request(self, title: str, body: str, head: str, base: str) -> PullRequestInfo:
         path = f"/repos/{self.owner}/{self.repo}/pulls"
         payload = {"title": title, "body": body, "head": head, "base": base}

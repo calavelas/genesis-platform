@@ -45,7 +45,9 @@ jobs:
         run: |
           echo "Changes detected: ${{ steps.genesis.outputs.has_changes }}"
           echo "Changed services: ${{ steps.genesis.outputs.changed_services }}"
+          echo "Removed services: ${{ steps.genesis.outputs.removed_services }}"
           echo "Changed files: ${{ steps.genesis.outputs.changed_file_count }}"
+          echo "Deleted files: ${{ steps.genesis.outputs.delete_file_count }}"
           if [ -n "${{ steps.genesis.outputs.pr_url }}" ]; then
             echo "PR: ${{ steps.genesis.outputs.pr_url }}"
           else

@@ -25,6 +25,12 @@ class ServiceReconcileResult:
     missing_files: list[str]
 
 
+@dataclass(slots=True)
+class RemovedServiceResult:
+    name: str
+    deleted_files: list[str]
+
+
 def write_github_output(values: dict[str, str]) -> None:
     output_path = os.getenv("GITHUB_OUTPUT")
     if not output_path:
@@ -78,11 +84,27 @@ def pick_branch_name(client: Any, requested_branch: str) -> str:
     raise RuntimeError(f"unable to pick unique branch name from prefix: {requested_branch}")
 
 
-def apply_to_worktree(repo_root: Path, files: dict[str, bytes]) -> None:
+def _cleanup_empty_dirs(path: Path, stop_at: Path) -> None:
+    current = path.parent
+    while current != stop_at and current.exists():
+        try:
+            current.rmdir()
+        except OSError:
+            break
+        current = current.parent
+
+
+def apply_to_worktree(repo_root: Path, files: dict[str, bytes], delete_files: list[str]) -> None:
     for relative_path, content in sorted(files.items()):
         target = repo_root / relative_path
         target.parent.mkdir(parents=True, exist_ok=True)
         target.write_bytes(content)
+
+    for relative_path in sorted(set(delete_files), reverse=True):
+        target = repo_root / relative_path
+        if target.exists() and target.is_file():
+            target.unlink()
+            _cleanup_empty_dirs(target, repo_root)
 
 
 def write_state_file(state_file: Path, project_name: str, state_map: dict[str, bool]) -> None:
@@ -95,7 +117,47 @@ def write_state_file(state_file: Path, project_name: str, state_map: dict[str, b
     state_file.write_text(rendered, encoding="utf-8")
 
 
-def reconcile(repo_root: Path, runtime_dir: Path) -> tuple[Any, list[ServiceReconcileResult], dict[str, bytes]]:
+def discover_managed_services(repo_root: Path) -> set[str]:
+    managed: set[str] = set()
+    services_root = repo_root / "services"
+    if services_root.exists():
+        for entry in services_root.iterdir():
+            if not entry.is_dir():
+                continue
+            if entry.name in {"examples"} or entry.name.startswith("."):
+                continue
+            if (entry / "chart" / "values.yaml").exists() or (entry / "Dockerfile").exists():
+                managed.add(entry.name)
+
+    apps_root = repo_root / "platform" / "clusters" / "local" / "apps"
+    if apps_root.exists():
+        for file_path in apps_root.glob("*.y*ml"):
+            if not file_path.is_file():
+                continue
+            if file_path.name.upper().startswith("README"):
+                continue
+            managed.add(file_path.stem)
+    return managed
+
+
+def collect_service_files_for_delete(repo_root: Path, service_name: str) -> list[str]:
+    files: set[str] = set()
+    app_file = repo_root / "platform" / "clusters" / "local" / "apps" / f"{service_name}.yaml"
+    if app_file.exists() and app_file.is_file():
+        files.add(app_file.relative_to(repo_root).as_posix())
+
+    service_root = repo_root / "services" / service_name
+    if service_root.exists() and service_root.is_dir():
+        for file_path in service_root.rglob("*"):
+            if file_path.is_file():
+                files.add(file_path.relative_to(repo_root).as_posix())
+
+    return sorted(files)
+
+
+def reconcile(
+    repo_root: Path, runtime_dir: Path
+) -> tuple[Any, list[ServiceReconcileResult], dict[str, bytes], list[str], list[RemovedServiceResult]]:
     load_all_configs, render_scaffold_for_service, _, _ = load_api_modules(repo_root)
     idp_config, services_config, _ = load_all_configs()
 
@@ -103,7 +165,7 @@ def reconcile(repo_root: Path, runtime_dir: Path) -> tuple[Any, list[ServiceReco
     reconcile_root.mkdir(parents=True, exist_ok=True)
 
     results: list[ServiceReconcileResult] = []
-    commit_files: dict[str, bytes] = {}
+    upsert_files: dict[str, bytes] = {}
 
     for service in services_config.services:
         staging_root = reconcile_root / service.name
@@ -124,14 +186,14 @@ def reconcile(repo_root: Path, runtime_dir: Path) -> tuple[Any, list[ServiceReco
             if not target.exists():
                 component_synced[component] = False
                 missing_files.append(relative_path)
-                commit_files[relative_path] = expected_content
+                upsert_files[relative_path] = expected_content
                 continue
 
             current_content = target.read_bytes()
             if current_content != expected_content:
                 component_synced[component] = False
                 changed_files.append(relative_path)
-                commit_files[relative_path] = expected_content
+                upsert_files[relative_path] = expected_content
 
         needs_reconcile = len(changed_files) > 0 or len(missing_files) > 0
         results.append(
@@ -147,14 +209,30 @@ def reconcile(repo_root: Path, runtime_dir: Path) -> tuple[Any, list[ServiceReco
             )
         )
 
-    return idp_config, results, commit_files
+    desired_services = {service.name for service in services_config.services}
+    managed_services = discover_managed_services(repo_root)
+    removed_services = sorted(managed_services - desired_services)
+
+    removed_results: list[RemovedServiceResult] = []
+    delete_files: list[str] = []
+    for removed_service in removed_services:
+        deleted_files = collect_service_files_for_delete(repo_root, removed_service)
+        if not deleted_files:
+            continue
+        delete_files.extend(deleted_files)
+        removed_results.append(
+            RemovedServiceResult(name=removed_service, deleted_files=deleted_files)
+        )
+
+    return idp_config, results, upsert_files, sorted(set(delete_files)), removed_results
 
 
 def open_reconcile_pr(
     *,
     repo_root: Path,
     idp_config: Any,
-    files: dict[str, bytes],
+    upsert_files: dict[str, bytes],
+    delete_files: list[str],
     changed_services: list[str],
     github_token: str,
     branch_prefix: str,
@@ -179,19 +257,27 @@ def open_reconcile_pr(
         base_sha = github_client.get_ref_sha(base_branch)
         github_client.create_branch(branch_name, base_sha)
 
-        for file_path, content in sorted(files.items()):
+        for file_path, content in sorted(upsert_files.items()):
             github_client.create_or_update_file(
                 branch=branch_name,
                 file_path=file_path,
                 content_bytes=content,
                 commit_message=f"feat(genesis): reconcile generated assets ({file_path})",
             )
+        for file_path in sorted(set(delete_files), reverse=True):
+            github_client.delete_file(
+                branch=branch_name,
+                file_path=file_path,
+                commit_message=f"feat(genesis): remove decommissioned service asset ({file_path})",
+            )
 
         pr = github_client.create_pull_request(
             title="feat(genesis): reconcile generated service and GitOps assets",
             body=(
                 "Automated reconcile from `idp-config.yaml` and `services-config.yaml`.\n\n"
-                f"Changed services ({len(changed_services)}): {', '.join(changed_services)}"
+                f"Changed services ({len(changed_services)}): {', '.join(changed_services)}\n"
+                f"Upsert files: {len(upsert_files)}\n"
+                f"Delete files: {len(delete_files)}"
             ),
             head=branch_name,
             base=base_branch,
@@ -206,20 +292,26 @@ def build_summary(
     state_file: Path,
     project_name: str,
     results: list[ServiceReconcileResult],
-    changed_files: dict[str, bytes],
+    removed_results: list[RemovedServiceResult],
+    upsert_files: dict[str, bytes],
+    delete_files: list[str],
+    changed_services: list[str],
     pr_branch: str | None = None,
     pr_number: int | None = None,
     pr_url: str | None = None,
 ) -> dict[str, Any]:
-    changed_services = [result.name for result in results if result.needs_reconcile]
     return {
         "projectName": project_name,
         "stateFile": str(state_file),
         "serviceCount": len(results),
+        "removedServiceCount": len(removed_results),
         "changedServiceCount": len(changed_services),
         "changedServices": changed_services,
-        "changedFileCount": len(changed_files),
-        "files": sorted(changed_files.keys()),
+        "changedFileCount": len(upsert_files) + len(delete_files),
+        "upsertFileCount": len(upsert_files),
+        "deleteFileCount": len(delete_files),
+        "files": sorted(upsert_files.keys()),
+        "deletedFiles": sorted(delete_files),
         "results": [
             {
                 "name": result.name,
@@ -232,6 +324,10 @@ def build_summary(
                 "missingFiles": result.missing_files,
             }
             for result in results
+        ],
+        "removedServices": [
+            {"name": removed.name, "deletedFiles": removed.deleted_files}
+            for removed in removed_results
         ],
         "pullRequest": {
             "branch": pr_branch,
@@ -274,26 +370,32 @@ def main() -> int:
     if args.services_config:
         os.environ["SERVICES_CONFIG_PATH"] = args.services_config
 
-    idp_config, results, commit_files = reconcile(repo_root, runtime_dir)
+    idp_config, results, upsert_files, delete_files, removed_results = reconcile(repo_root, runtime_dir)
 
     state_map = {result.name: (not result.needs_reconcile) for result in results}
     write_state_file(state_file, idp_config.projectName, state_map)
 
-    if args.write_worktree and commit_files:
-        apply_to_worktree(repo_root, commit_files)
+    if args.write_worktree and (upsert_files or delete_files):
+        apply_to_worktree(repo_root, upsert_files, delete_files)
 
-    changed_services = [result.name for result in results if result.needs_reconcile]
+    changed_services = sorted(
+        {
+            *[result.name for result in results if result.needs_reconcile],
+            *[removed.name for removed in removed_results],
+        }
+    )
 
     pr_branch: str | None = None
     pr_number: int | None = None
     pr_url: str | None = None
 
-    if args.open_pr and commit_files:
+    if args.open_pr and (upsert_files or delete_files):
         token = args.github_token or os.getenv("GITHUB_TOKEN", "")
         pr_branch, pr_number, pr_url = open_reconcile_pr(
             repo_root=repo_root,
             idp_config=idp_config,
-            files=commit_files,
+            upsert_files=upsert_files,
+            delete_files=delete_files,
             changed_services=changed_services,
             github_token=token,
             branch_prefix=args.branch_prefix,
@@ -304,7 +406,10 @@ def main() -> int:
         state_file=state_file,
         project_name=idp_config.projectName,
         results=results,
-        changed_files=commit_files,
+        removed_results=removed_results,
+        upsert_files=upsert_files,
+        delete_files=delete_files,
+        changed_services=changed_services,
         pr_branch=pr_branch,
         pr_number=pr_number,
         pr_url=pr_url,
@@ -314,10 +419,14 @@ def main() -> int:
 
     write_github_output(
         {
-            "has_changes": "true" if commit_files else "false",
+            "has_changes": "true" if (upsert_files or delete_files) else "false",
             "changed_services": ",".join(changed_services),
             "changed_service_count": str(len(changed_services)),
-            "changed_file_count": str(len(commit_files)),
+            "removed_services": ",".join(sorted(removed.name for removed in removed_results)),
+            "removed_service_count": str(len(removed_results)),
+            "changed_file_count": str(len(upsert_files) + len(delete_files)),
+            "upsert_file_count": str(len(upsert_files)),
+            "delete_file_count": str(len(delete_files)),
             "state_file": str(state_file),
             "pr_branch": pr_branch or "",
             "pr_number": str(pr_number or ""),
