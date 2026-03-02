@@ -1,15 +1,15 @@
-services: []
-# - name: cooper
-#   namespace: demo
-#   deployTo:
-#   - local
-#   generator:
-#     service:
-#       template: python-fastapi
-#     gitops:
-#       template: helm-service
-#   overrides:
-#     image: calavelas/cooper:git-8f6f4de
+services:
+- name: cooper
+  namespace: demo
+  deployTo:
+  - local
+  generator:
+    service:
+      template: python-fastapi
+    gitops:
+      template: helm-service
+  overrides:
+    image: calavelas/cooper:git-8f6f4de
 # - name: brand
 #   namespace: demo
 #   deployTo:
