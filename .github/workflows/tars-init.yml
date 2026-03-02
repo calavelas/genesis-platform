@@ -80,6 +80,8 @@ jobs:
 
           echo "services=$SERVICES" >> "$GITHUB_OUTPUT"
           echo "service_count=$COUNT" >> "$GITHUB_OUTPUT"
+          echo "before_sha=$BEFORE" >> "$GITHUB_OUTPUT"
+          echo "after_sha=$AFTER" >> "$GITHUB_OUTPUT"
 
       - name: Auto-tag changed services
         id: tag_services
@@ -107,39 +109,63 @@ jobs:
           set -euo pipefail
           python3 TARS/TARS.py svcs-check \
             --repo-root . \
-            --write-worktree | tee tars-svcs-check.json
+            --write-worktree
 
       - name: TARS Summary
         run: |
-          echo "::notice title=TARS Source Services::${{ steps.detect_source_services.outputs.services || 'none' }}"
-          if [ -n "${{ steps.tag_services.outputs.tag }}" ]; then
-            echo "::notice title=TARS Auto Tag::tag=${{ steps.tag_services.outputs.tag }}, updated=${{ steps.tag_services.outputs.updated_services || 'none' }}"
+          set -euo pipefail
+
+          as_bullets() {
+            local csv="$1"
+            if [ -z "$csv" ]; then
+              echo "- none"
+              return
+            fi
+            printf "%s\n" "$csv" | tr ',' '\n' | sed '/^$/d' | sed 's/^/- `/' | sed 's/$/`/'
+          }
+
+          BEFORE_SHA="${{ steps.detect_source_services.outputs.before_sha }}"
+          AFTER_SHA="${{ steps.detect_source_services.outputs.after_sha }}"
+          if [ -z "$AFTER_SHA" ]; then
+            AFTER_SHA="${{ github.sha }}"
           fi
-          echo "::notice title=TARS SVCS Check::changes=${{ steps.svcs_check.outputs.has_changes }}, files=${{ steps.svcs_check.outputs.changed_file_count }}, services=${{ steps.svcs_check.outputs.changed_service_count }}"
-          echo "::notice title=TARS Added Services::${{ steps.svcs_check.outputs.added_services || 'none' }}"
-          echo "::notice title=TARS Updated Services::${{ steps.svcs_check.outputs.updated_services || 'none' }}"
-          echo "::notice title=TARS Removed Services::${{ steps.svcs_check.outputs.removed_services || 'none' }}"
+
+          SOURCE_COMMIT_REF="n/a"
+          if [ -n "$BEFORE_SHA" ] && [ "$BEFORE_SHA" != "0000000000000000000000000000000000000000" ]; then
+            SOURCE_COMMIT_REF="${BEFORE_SHA:0:7}..${AFTER_SHA:0:7}"
+          elif [ -n "$AFTER_SHA" ]; then
+            SOURCE_COMMIT_REF="${AFTER_SHA:0:7}"
+          fi
+
+          echo "::notice title=TARS Reconcile::changes=${{ steps.svcs_check.outputs.has_changes }}, services=${{ steps.svcs_check.outputs.changed_service_count }}, files=${{ steps.svcs_check.outputs.changed_file_count }}, commit_ref=${SOURCE_COMMIT_REF}"
+          if [ -n "${{ steps.tag_services.outputs.tag }}" ]; then
+            echo "::notice title=TARS Auto Tag::tag=${{ steps.tag_services.outputs.tag }}, updated=${{ steps.tag_services.outputs.updated_services || 'none' }}, missing=${{ steps.tag_services.outputs.missing_services || 'none' }}"
+          fi
 
           {
-            echo "### TARS SVCS Check"
+            echo "### TARS Reconcile Summary"
             echo ""
             echo "- Changes detected: \`${{ steps.svcs_check.outputs.has_changes }}\`"
-            echo "- Source services changed: \`${{ steps.detect_source_services.outputs.service_count || '0' }}\`"
-            echo "- Source service list: \`${{ steps.detect_source_services.outputs.services || 'none' }}\`"
+            echo "- Source commit range: \`${SOURCE_COMMIT_REF}\`"
+            echo "- Trigger commit: \`${{ github.sha }}\`"
             echo "- Auto tag value: \`${{ steps.tag_services.outputs.tag || 'none' }}\`"
-            echo "- Auto-tag updated services: \`${{ steps.tag_services.outputs.updated_services || 'none' }}\`"
-            echo "- Auto-tag missing services: \`${{ steps.tag_services.outputs.missing_services || 'none' }}\`"
-            echo "- Changed service count: \`${{ steps.svcs_check.outputs.changed_service_count }}\`"
-            echo "- Added service count: \`${{ steps.svcs_check.outputs.added_service_count }}\`"
-            echo "- Updated service count: \`${{ steps.svcs_check.outputs.updated_service_count }}\`"
-            echo "- Removed service count: \`${{ steps.svcs_check.outputs.removed_service_count }}\`"
-            echo "- Changed file count: \`${{ steps.svcs_check.outputs.changed_file_count }}\`"
-            echo "- Upsert file count: \`${{ steps.svcs_check.outputs.upsert_file_count }}\`"
-            echo "- Delete file count: \`${{ steps.svcs_check.outputs.delete_file_count }}\`"
             echo ""
-            echo "- Added services: \`${{ steps.svcs_check.outputs.added_services || 'none' }}\`"
-            echo "- Updated services: \`${{ steps.svcs_check.outputs.updated_services || 'none' }}\`"
-            echo "- Removed services: \`${{ steps.svcs_check.outputs.removed_services || 'none' }}\`"
+            echo "#### Source service paths changed (${{ steps.detect_source_services.outputs.service_count || '0' }})"
+            as_bullets "${{ steps.detect_source_services.outputs.services }}"
+            echo ""
+            echo "#### Reconcile service changes (${{ steps.svcs_check.outputs.changed_service_count }})"
+            echo "- Added (${{ steps.svcs_check.outputs.added_service_count }}):"
+            as_bullets "${{ steps.svcs_check.outputs.added_services }}"
+            echo "- Updated (${{ steps.svcs_check.outputs.updated_service_count }}):"
+            as_bullets "${{ steps.svcs_check.outputs.updated_services }}"
+            echo "- Removed (${{ steps.svcs_check.outputs.removed_service_count }}):"
+            as_bullets "${{ steps.svcs_check.outputs.removed_services }}"
+            echo ""
+            echo "#### Reconcile file changes (${{ steps.svcs_check.outputs.changed_file_count }})"
+            echo "- Upsert files (${{ steps.svcs_check.outputs.upsert_file_count }}):"
+            as_bullets "${{ steps.svcs_check.outputs.upsert_files }}"
+            echo "- Deleted files (${{ steps.svcs_check.outputs.delete_file_count }}):"
+            as_bullets "${{ steps.svcs_check.outputs.deleted_files }}"
           } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Commit generated updates to PR branch
