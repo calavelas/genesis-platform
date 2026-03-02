@@ -42,11 +42,9 @@ Local-first GitOps Internal Developer Platform demo with:
 ### SVCS (Service) List
 
 <!-- TARS:SVCS_TABLE_START -->
-Total Services Running: 3
+Total Services Running: 0
 
 | Service Name | Template |
 | --- | --- |
-| brand | python-fastapi |
-| cooper | python-fastapi |
-| miller | python-fastapi |
+| - | - |
 <!-- TARS:SVCS_TABLE_END -->
