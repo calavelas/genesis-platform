@@ -117,7 +117,7 @@ def _build_template_context(
     github_owner: str,
     github_repo: str,
 ) -> dict[str, object]:
-    image = service.overrides.image or f"ghcr.io/{github_owner}/{service.name}:0.1.0"
+    image = service.overrides.image or f"{github_owner}/{service.name}:0.1.0"
     image_repository, image_tag = _split_image(image)
 
     requests_cpu = "100m"

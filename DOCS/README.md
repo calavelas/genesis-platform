@@ -33,7 +33,7 @@
   - `dryRun: false` -> render + create branch + commit files + open GitHub PR.
 
 ## CI/CD Notes
-- Workflow `tars-init.yml` runs on PR changes to `ENDR.yaml`/`SVCS.yaml`, executes `TARS/TARS.py svcs-check --write-worktree`, and auto-commits generated assets back to the same PR branch.
+- Workflow `tars-init.yml` runs on PR changes to `ENDR.yaml`/`SVCS.yaml`, auto-tags changed service images (`git-<sha>`), executes `TARS/TARS.py svcs-check --write-worktree`, and auto-commits generated assets back to the same PR branch.
 - `tars-init.yml` publishes job annotations (`::notice::`) and a Markdown job summary with changed service/file details.
 - ArgoCD child app template now sets `syncOptions: [CreateNamespace=true]`.
 - Workflow `tars-cleanup.yml` deletes merged TARS-generated source branches.

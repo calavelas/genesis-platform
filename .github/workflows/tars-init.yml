@@ -46,6 +46,79 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install fastapi pydantic pyyaml jinja2 certifi
 
+      - name: Detect changed service source paths
+        id: detect_source_services
+        run: |
+          set -euo pipefail
+
+          BEFORE=""
+          AFTER=""
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            BEFORE="${{ github.event.pull_request.base.sha }}"
+            AFTER="${{ github.event.pull_request.head.sha }}"
+          elif [ "${{ github.event_name }}" = "push" ]; then
+            BEFORE="${{ github.event.before }}"
+            AFTER="${{ github.sha }}"
+          fi
+
+          if [ -z "$AFTER" ]; then
+            AFTER="$(git rev-parse HEAD)"
+          fi
+
+          if [ -z "$BEFORE" ] || [[ "$BEFORE" =~ ^0+$ ]]; then
+            CHANGED_FILES="$(git diff-tree --no-commit-id --name-only -r "$AFTER")"
+          else
+            CHANGED_FILES="$(git diff --name-only "$BEFORE" "$AFTER")"
+          fi
+
+          SERVICES="$(printf "%s\n" "$CHANGED_FILES" | awk -F/ '
+            $1=="SVCS" && $2!="" && $2!="examples" {
+              svc=$2
+              if (
+                $3=="app" ||
+                $3=="src" ||
+                $3=="cmd" ||
+                $3=="internal" ||
+                $3=="pkg" ||
+                $3=="lib" ||
+                $3=="Dockerfile" ||
+                $3=="requirements.txt" ||
+                $3=="pyproject.toml" ||
+                $3=="package.json" ||
+                $3=="package-lock.json" ||
+                $3=="go.mod" ||
+                $3=="go.sum" ||
+                $3=="Cargo.toml" ||
+                $3=="Cargo.lock"
+              ) print svc
+            }' | sort -u | paste -sd, -)"
+
+          COUNT=0
+          if [ -n "$SERVICES" ]; then
+            COUNT="$(printf "%s\n" "$SERVICES" | tr ',' '\n' | sed '/^$/d' | wc -l | tr -d ' ')"
+          fi
+
+          echo "services=$SERVICES" >> "$GITHUB_OUTPUT"
+          echo "service_count=$COUNT" >> "$GITHUB_OUTPUT"
+
+      - name: Auto-tag changed services
+        id: tag_services
+        if: ${{ steps.detect_source_services.outputs.services != '' }}
+        run: |
+          set -euo pipefail
+
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            TAG_SHA="${{ github.event.pull_request.head.sha }}"
+          else
+            TAG_SHA="${{ github.sha }}"
+          fi
+          TAG_VALUE="git-${TAG_SHA:0:7}"
+
+          python3 TARS/TARS.py update-image-tags \
+            --repo-root . \
+            --services "${{ steps.detect_source_services.outputs.services }}" \
+            --tag "$TAG_VALUE"
+
       - name: SVCS Check
         id: svcs_check
         env:
@@ -58,6 +131,10 @@ jobs:
 
       - name: TARS Summary
         run: |
+          echo "::notice title=TARS Source Services::${{ steps.detect_source_services.outputs.services || 'none' }}"
+          if [ -n "${{ steps.tag_services.outputs.tag }}" ]; then
+            echo "::notice title=TARS Auto Tag::tag=${{ steps.tag_services.outputs.tag }}, updated=${{ steps.tag_services.outputs.updated_services || 'none' }}"
+          fi
           echo "::notice title=TARS SVCS Check::changes=${{ steps.svcs_check.outputs.has_changes }}, files=${{ steps.svcs_check.outputs.changed_file_count }}, services=${{ steps.svcs_check.outputs.changed_service_count }}"
           echo "::notice title=TARS Added Services::${{ steps.svcs_check.outputs.added_services || 'none' }}"
           echo "::notice title=TARS Updated Services::${{ steps.svcs_check.outputs.updated_services || 'none' }}"
@@ -67,6 +144,11 @@ jobs:
             echo "### TARS SVCS Check"
             echo ""
             echo "- Changes detected: \`${{ steps.svcs_check.outputs.has_changes }}\`"
+            echo "- Source services changed: \`${{ steps.detect_source_services.outputs.service_count || '0' }}\`"
+            echo "- Source service list: \`${{ steps.detect_source_services.outputs.services || 'none' }}\`"
+            echo "- Auto tag value: \`${{ steps.tag_services.outputs.tag || 'none' }}\`"
+            echo "- Auto-tag updated services: \`${{ steps.tag_services.outputs.updated_services || 'none' }}\`"
+            echo "- Auto-tag missing services: \`${{ steps.tag_services.outputs.missing_services || 'none' }}\`"
             echo "- Changed service count: \`${{ steps.svcs_check.outputs.changed_service_count }}\`"
             echo "- Added service count: \`${{ steps.svcs_check.outputs.added_service_count }}\`"
             echo "- Updated service count: \`${{ steps.svcs_check.outputs.updated_service_count }}\`"

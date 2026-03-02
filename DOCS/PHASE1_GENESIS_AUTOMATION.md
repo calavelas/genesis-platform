@@ -58,6 +58,7 @@ Trigger:
 - manual `workflow_dispatch`
 
 Behavior:
+- Detects changed service source paths in the PR and auto-updates `SVCS.yaml` image tags to immutable `git-<sha>` tags.
 - Runs `TARS/TARS.py svcs-check --write-worktree`
 - If drift exists, commits generated changes back to the same PR branch.
 - PR merge is then a single source-of-truth merge (no second reconcile PR).

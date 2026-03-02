@@ -9,7 +9,7 @@ These workflows cover:
 - post-merge TARS branch cleanup
 
 Files:
-- `tars-init.yml`: runs TARS SVCS reconcile on pull requests, commits generated files back to the same PR branch, and emits job annotations/summary.
+- `tars-init.yml`: runs TARS SVCS reconcile on pull requests, auto-tags changed services (`git-<sha>`), commits generated files back to the same PR branch, and emits job annotations/summary.
 - `svcs-publish.yml`: publishes changed service images.
 - `tars-cleanup.yml`: deletes merged TARS source branches.
 - `validate-platform.yml`: validates platform and templates.

@@ -198,14 +198,155 @@ def discover_changed_services_main(argv: list[str] | None = None) -> int:
     return 0
 
 
+def _split_image(value: str) -> tuple[str, str]:
+    if ":" in value and value.rfind(":") > value.rfind("/"):
+        repository, tag = value.rsplit(":", 1)
+        return repository, tag
+    return value, ""
+
+
+def _write_key_value_output(values: dict[str, str]) -> None:
+    output_path = os.getenv("GITHUB_OUTPUT")
+    if not output_path:
+        return
+
+    with Path(output_path).open("a", encoding="utf-8") as handle:
+        for key, value in values.items():
+            handle.write(f"{key}={value}\n")
+
+
+def update_image_tags_main(argv: list[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(description="Update image tags in SVCS.yaml for selected services")
+    parser.add_argument("--repo-root", default=".")
+    parser.add_argument("--services", default="")
+    parser.add_argument("--tag", required=True)
+    parser.add_argument("--allow-missing", action="store_true")
+    args = parser.parse_args(argv)
+
+    repo_root = Path(args.repo_root).resolve()
+    services = sorted({item.strip() for item in args.services.split(",") if item.strip()})
+
+    if not services:
+        payload = {
+            "tag": args.tag,
+            "services": [],
+            "updated_services": [],
+            "unchanged_services": [],
+            "missing_services": [],
+            "changed": False,
+        }
+        _write_key_value_output(
+            {
+                "tag": args.tag,
+                "services": "",
+                "service_count": "0",
+                "updated_services": "",
+                "updated_service_count": "0",
+                "unchanged_services": "",
+                "unchanged_service_count": "0",
+                "missing_services": "",
+                "missing_service_count": "0",
+                "changed": "false",
+            }
+        )
+        print(json.dumps(payload, indent=2))
+        return 0
+
+    idp_path = repo_root / "ENDR.yaml"
+    svcs_path = repo_root / "SVCS.yaml"
+
+    idp_raw = yaml.safe_load(idp_path.read_text(encoding="utf-8")) or {}
+    if not isinstance(idp_raw, dict):
+        raise ValueError("ENDR.yaml root must be a mapping")
+    owner = str(idp_raw.get("config", {}).get("git", {}).get("owner", "")).strip()
+    if not owner:
+        raise ValueError("ENDR.yaml config.git.owner is required")
+
+    svcs_raw = yaml.safe_load(svcs_path.read_text(encoding="utf-8")) or {}
+    if not isinstance(svcs_raw, dict):
+        raise ValueError("SVCS.yaml root must be a mapping")
+    entries = svcs_raw.get("services", [])
+    if not isinstance(entries, list):
+        raise ValueError("SVCS.yaml services must be a list")
+
+    by_name: dict[str, dict[str, Any]] = {}
+    for entry in entries:
+        if not isinstance(entry, dict):
+            continue
+        name = entry.get("name")
+        if isinstance(name, str) and name.strip():
+            by_name[name] = entry
+
+    updated: list[str] = []
+    unchanged: list[str] = []
+    missing: list[str] = []
+
+    for service_name in services:
+        service_entry = by_name.get(service_name)
+        if not service_entry:
+            missing.append(service_name)
+            continue
+
+        overrides = service_entry.setdefault("overrides", {})
+        if not isinstance(overrides, dict):
+            raise ValueError(f"SVCS.yaml overrides for service '{service_name}' must be mapping")
+
+        current_image = overrides.get("image")
+        if isinstance(current_image, str) and current_image.strip():
+            repository, _ = _split_image(current_image.strip())
+        else:
+            repository = f"{owner}/{service_name}"
+
+        new_image = f"{repository}:{args.tag}"
+        if current_image != new_image:
+            overrides["image"] = new_image
+            updated.append(service_name)
+        else:
+            unchanged.append(service_name)
+
+    changed = len(updated) > 0
+    if changed:
+        svcs_path.write_text(yaml.safe_dump(svcs_raw, sort_keys=False, allow_unicode=False), encoding="utf-8")
+
+    payload = {
+        "tag": args.tag,
+        "services": services,
+        "updated_services": updated,
+        "unchanged_services": unchanged,
+        "missing_services": missing,
+        "changed": changed,
+    }
+    _write_key_value_output(
+        {
+            "tag": args.tag,
+            "services": ",".join(services),
+            "service_count": str(len(services)),
+            "updated_services": ",".join(updated),
+            "updated_service_count": str(len(updated)),
+            "unchanged_services": ",".join(unchanged),
+            "unchanged_service_count": str(len(unchanged)),
+            "missing_services": ",".join(missing),
+            "missing_service_count": str(len(missing)),
+            "changed": "true" if changed else "false",
+        }
+    )
+    print(json.dumps(payload, indent=2))
+
+    if missing and not args.allow_missing:
+        return 1
+    return 0
+
+
 def print_help() -> None:
     print(
         "Usage:\n"
         "  python3 TARS/TARS.py svcs-check [SVCS_CHECK_ARGS...]\n"
-        "  python3 TARS/TARS.py discover-changed-services [DISCOVER_ARGS...]\n\n"
+        "  python3 TARS/TARS.py discover-changed-services [DISCOVER_ARGS...]\n"
+        "  python3 TARS/TARS.py update-image-tags [TAG_ARGS...]\n\n"
         "Examples:\n"
         "  python3 TARS/TARS.py svcs-check --repo-root . --open-pr\n"
         "  python3 TARS/TARS.py discover-changed-services --repo-root . --before <sha> --after <sha> --registry dockerhub --image-owner <owner>\n"
+        "  python3 TARS/TARS.py update-image-tags --repo-root . --services svc-a,svc-b --tag git-abcdef1\n"
     )
 
 
@@ -226,6 +367,9 @@ def main(argv: list[str] | None = None) -> int:
 
     if subcommand in {"discover-changed-services", "discover"}:
         return discover_changed_services_main(sub_args)
+
+    if subcommand in {"update-image-tags", "tag-services"}:
+        return update_image_tags_main(sub_args)
 
     # Allow calling with only svcs-check flags.
     if subcommand.startswith("-"):

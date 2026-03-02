@@ -8,3 +8,5 @@ services:
       template: python-fastapi
     gitops:
       template: helm-service
+  overrides:
+    image: calavelas/endr-svc-demo:git-123abcd
