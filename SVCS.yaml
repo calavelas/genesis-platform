@@ -1,13 +1,4 @@
 services:
-# - name: cooper
-#   namespace: demo
-#   deployTo:
-#   - local
-#   generator:
-#     service:
-#       template: python-fastapi
-#     gitops:
-#       template: helm-service
 - name: brand
   namespace: demo
   deployTo:
@@ -17,6 +8,8 @@ services:
       template: python-fastapi
     gitops:
       template: helm-service
+  overrides:
+    image: calavelas/brand:git-ad46b22
 - name: miller
   namespace: demo
   deployTo:
@@ -26,3 +19,5 @@ services:
       template: python-fastapi
     gitops:
       template: helm-service
+  overrides:
+    image: calavelas/miller:git-ad46b22
