@@ -1,14 +1,14 @@
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: demo-pr-0302172827
+  name: hello-service
   namespace: argocd
 spec:
   project: default
   source:
     repoURL: https://github.com/calavelas/genesis-platform.git
     targetRevision: main
-    path: services/demo-pr-0302172827/chart
+    path: services/hello-service/chart
   destination:
     server: https://kubernetes.default.svc
     namespace: demo
