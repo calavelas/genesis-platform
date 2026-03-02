@@ -115,13 +115,14 @@ jobs:
         run: |
           set -euo pipefail
 
-          as_bullets() {
+          as_numbered() {
             local csv="$1"
+            local indent="${2:-}"
             if [ -z "$csv" ]; then
-              echo "- none"
+              echo "${indent}1. none"
               return
             fi
-            printf "%s\n" "$csv" | tr ',' '\n' | sed '/^$/d' | sed 's/^/- `/' | sed 's/$/`/'
+            printf "%s\n" "$csv" | tr ',' '\n' | sed '/^$/d' | awk -v p="$indent" '{ printf "%s1. `%s`\n", p, $0 }'
           }
 
           BEFORE_SHA="${{ steps.detect_source_services.outputs.before_sha }}"
@@ -145,27 +146,29 @@ jobs:
           {
             echo "### TARS Reconcile Summary"
             echo ""
-            echo "- Changes detected: \`${{ steps.svcs_check.outputs.has_changes }}\`"
-            echo "- Source commit range: \`${SOURCE_COMMIT_REF}\`"
-            echo "- Trigger commit: \`${{ github.sha }}\`"
-            echo "- Auto tag value: \`${{ steps.tag_services.outputs.tag || 'none' }}\`"
+            echo "| Item | Value |"
+            echo "| --- | --- |"
+            echo "| Changes detected | \`${{ steps.svcs_check.outputs.has_changes }}\` |"
+            echo "| Source commit range | \`${SOURCE_COMMIT_REF}\` |"
+            echo "| Trigger commit | \`${{ github.sha }}\` |"
+            echo "| Auto tag value | \`${{ steps.tag_services.outputs.tag || 'none' }}\` |"
             echo ""
             echo "#### Source service paths changed (${{ steps.detect_source_services.outputs.service_count || '0' }})"
-            as_bullets "${{ steps.detect_source_services.outputs.services }}"
+            as_numbered "${{ steps.detect_source_services.outputs.services }}"
             echo ""
             echo "#### Reconcile service changes (${{ steps.svcs_check.outputs.changed_service_count }})"
-            echo "- Added (${{ steps.svcs_check.outputs.added_service_count }}):"
-            as_bullets "${{ steps.svcs_check.outputs.added_services }}"
-            echo "- Updated (${{ steps.svcs_check.outputs.updated_service_count }}):"
-            as_bullets "${{ steps.svcs_check.outputs.updated_services }}"
-            echo "- Removed (${{ steps.svcs_check.outputs.removed_service_count }}):"
-            as_bullets "${{ steps.svcs_check.outputs.removed_services }}"
+            echo "1. Added (${{ steps.svcs_check.outputs.added_service_count }})"
+            as_numbered "${{ steps.svcs_check.outputs.added_services }}" "   "
+            echo "2. Updated (${{ steps.svcs_check.outputs.updated_service_count }})"
+            as_numbered "${{ steps.svcs_check.outputs.updated_services }}" "   "
+            echo "3. Removed (${{ steps.svcs_check.outputs.removed_service_count }})"
+            as_numbered "${{ steps.svcs_check.outputs.removed_services }}" "   "
             echo ""
             echo "#### Reconcile file changes (${{ steps.svcs_check.outputs.changed_file_count }})"
-            echo "- Upsert files (${{ steps.svcs_check.outputs.upsert_file_count }}):"
-            as_bullets "${{ steps.svcs_check.outputs.upsert_files }}"
-            echo "- Deleted files (${{ steps.svcs_check.outputs.delete_file_count }}):"
-            as_bullets "${{ steps.svcs_check.outputs.deleted_files }}"
+            echo "1. Upsert files (${{ steps.svcs_check.outputs.upsert_file_count }})"
+            as_numbered "${{ steps.svcs_check.outputs.upsert_files }}" "   "
+            echo "2. Deleted files (${{ steps.svcs_check.outputs.delete_file_count }})"
+            as_numbered "${{ steps.svcs_check.outputs.deleted_files }}" "   "
           } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Commit generated updates to PR branch

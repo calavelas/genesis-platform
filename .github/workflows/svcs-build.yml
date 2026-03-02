@@ -15,7 +15,10 @@ permissions:
 
 jobs:
   discover:
-    if: ${{ github.event_name != 'push' || github.actor != 'github-actions[bot]' }}
+    if: >
+      github.event_name != 'push' ||
+      github.actor != 'github-actions[bot]' ||
+      !startsWith(github.event.head_commit.message || '', 'TARS : Persist image tag ')
     runs-on: ubuntu-latest
     outputs:
       matrix: ${{ steps.discover.outputs.matrix }}
