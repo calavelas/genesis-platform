@@ -119,20 +119,57 @@ jobs:
 
       - name: Summary
         run: |
+          set -euo pipefail
+
+          as_numbered_csv() {
+            local csv="$1"
+            local indent="${2:-}"
+            if [ -z "$csv" ]; then
+              echo "${indent}1. none"
+              return
+            fi
+            printf "%s\n" "$csv" | tr ',' '\n' | sed '/^$/d' | awk -v p="$indent" '{ printf "%s1. `%s`\n", p, $0 }'
+          }
+
+          as_numbered_lines() {
+            local lines="$1"
+            local indent="${2:-}"
+            if [ -z "$lines" ]; then
+              echo "${indent}1. none"
+              return
+            fi
+            printf "%s\n" "$lines" | sed '/^$/d' | awk -v p="$indent" '{ printf "%s1. `%s`\n", p, $0 }'
+          }
+
+          MATRIX_JSON='${{ steps.discover.outputs.matrix }}'
+          PUBLISH_SERVICES="$(MATRIX_JSON="$MATRIX_JSON" python3 -c 'import json, os; raw=os.environ.get("MATRIX_JSON", "").strip(); payload=json.loads(raw) if raw else {}; names=[str(item.get("service", "")).strip() for item in payload.get("include", []) if isinstance(item, dict) and str(item.get("service", "")).strip()]; print(",".join(names))' 2>/dev/null || true)"
+          SKIPPED_SERVICES="${{ steps.discover.outputs.skipped }}"
+
           echo "::notice title=SVCS Source Services::${{ steps.detect_source_services.outputs.services || 'none' }}"
           echo "::notice title=SVCS Publish Tag::${{ steps.tag.outputs.tag }}"
           echo "Services to publish: ${{ steps.discover.outputs.count }}"
-          if [ -n "${{ steps.discover.outputs.skipped }}" ]; then
+          if [ -n "$SKIPPED_SERVICES" ]; then
             echo "Skipped services:"
-            echo "${{ steps.discover.outputs.skipped }}"
+            echo "$SKIPPED_SERVICES"
           fi
           {
             echo "### SVCS Publish Discovery"
             echo ""
-            echo "- Source services changed: \`${{ steps.detect_source_services.outputs.service_count || '0' }}\`"
-            echo "- Source service list: \`${{ steps.detect_source_services.outputs.services || 'none' }}\`"
-            echo "- Publish tag: \`${{ steps.tag.outputs.tag }}\`"
-            echo "- Services to publish: \`${{ steps.discover.outputs.count }}\`"
+            echo "| Item | Value |"
+            echo "| --- | --- |"
+            echo "| Source services changed | \`${{ steps.detect_source_services.outputs.service_count || '0' }}\` |"
+            echo "| Publish tag | \`${{ steps.tag.outputs.tag }}\` |"
+            echo "| Services to publish | \`${{ steps.discover.outputs.count }}\` |"
+            echo "| Has publishable services | \`${{ steps.discover.outputs.has_services || 'false' }}\` |"
+            echo ""
+            echo "#### Source service paths changed (${{ steps.detect_source_services.outputs.service_count || '0' }})"
+            as_numbered_csv "${{ steps.detect_source_services.outputs.services }}"
+            echo ""
+            echo "#### Publish discovery"
+            echo "- Selected for image publish (${{ steps.discover.outputs.count }})"
+            as_numbered_csv "$PUBLISH_SERVICES" "  "
+            echo "- Skipped services (with reason)"
+            as_numbered_lines "$SKIPPED_SERVICES" "  "
           } >> "$GITHUB_STEP_SUMMARY"
 
   publish:
