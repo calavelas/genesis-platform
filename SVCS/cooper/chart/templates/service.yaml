@@ -1,10 +1,10 @@
 apiVersion: v1
 kind: Service
 metadata:
-  name: miller
+  name: cooper
 spec:
   selector:
-    app.kubernetes.io/name: miller
+    app.kubernetes.io/name: cooper
   ports:
     - port: 80
       targetPort: 8080
