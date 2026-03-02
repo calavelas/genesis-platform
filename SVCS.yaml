@@ -1,34 +1,34 @@
-services:
-- name: cooper
-  namespace: demo
-  deployTo:
-  - local
-  generator:
-    service:
-      template: python-fastapi
-    gitops:
-      template: helm-service
-  overrides:
-    image: calavelas/cooper:git-8f6f4de
-- name: brand
-  namespace: demo
-  deployTo:
-  - local
-  generator:
-    service:
-      template: python-fastapi
-    gitops:
-      template: helm-service
-  overrides:
-    image: calavelas/brand:git-ad46b22
-- name: miller
-  namespace: demo
-  deployTo:
-  - local
-  generator:
-    service:
-      template: python-fastapi
-    gitops:
-      template: helm-service
-  overrides:
-    image: calavelas/miller:git-ad46b22
+services: []
+# - name: cooper
+#   namespace: demo
+#   deployTo:
+#   - local
+#   generator:
+#     service:
+#       template: python-fastapi
+#     gitops:
+#       template: helm-service
+#   overrides:
+#     image: calavelas/cooper:git-8f6f4de
+# - name: brand
+#   namespace: demo
+#   deployTo:
+#   - local
+#   generator:
+#     service:
+#       template: python-fastapi
+#     gitops:
+#       template: helm-service
+#   overrides:
+#     image: calavelas/brand:git-ad46b22
+# - name: miller
+#   namespace: demo
+#   deployTo:
+#   - local
+#   generator:
+#     service:
+#       template: python-fastapi
+#     gitops:
+#       template: helm-service
+#   overrides:
+#     image: calavelas/miller:git-ad46b22
