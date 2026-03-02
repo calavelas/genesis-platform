@@ -57,7 +57,7 @@ jobs:
       - name: Install script dependencies
         run: |
           python -m pip install --upgrade pip
-          python -m pip install fastapi pydantic pyyaml jinja2 certifi
+          python -m pip install fastapi pydantic pyyaml ruamel.yaml jinja2 certifi
 
       - name: Validate Docker Hub secrets
         run: |
@@ -128,7 +128,8 @@ jobs:
             --allow-missing
           python3 TARS/TARS.py svcs-check \
             --repo-root . \
-            --write-worktree > /tmp/tars-svcs-sync.json
+            --write-worktree \
+            --write-scope gitops > /tmp/tars-svcs-sync.json
 
       - name: Discover changed services
         id: discover
@@ -264,7 +265,7 @@ jobs:
       - name: Install script dependencies
         run: |
           python -m pip install --upgrade pip
-          python -m pip install fastapi pydantic pyyaml jinja2 certifi
+          python -m pip install fastapi pydantic pyyaml ruamel.yaml jinja2 certifi
 
       - name: Apply publish tag to config
         run: |
@@ -276,7 +277,8 @@ jobs:
             --allow-missing
           python3 TARS/TARS.py svcs-check \
             --repo-root . \
-            --write-worktree > /tmp/tars-svcs-sync.json
+            --write-worktree \
+            --write-scope gitops > /tmp/tars-svcs-sync.json
 
       - name: Commit tag updates
         run: |

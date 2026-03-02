@@ -52,6 +52,46 @@ def classify_component(service_name: str, repo_path: str) -> str:
     return "service"
 
 
+def _service_name_from_repo_path(repo_path: str) -> str | None:
+    if repo_path.startswith("SVCS/"):
+        parts = Path(repo_path).parts
+        if len(parts) >= 2 and parts[1]:
+            return parts[1]
+
+    prefix = "KUBE/clusters/local/apps/"
+    if repo_path.startswith(prefix) and repo_path.endswith(".yaml"):
+        return Path(repo_path).stem
+
+    return None
+
+
+def filter_reconcile_files_for_scope(
+    scope: str, upsert_files: dict[str, bytes], delete_files: list[str]
+) -> tuple[dict[str, bytes], list[str]]:
+    if scope == "all":
+        return upsert_files, delete_files
+
+    allowed_components = {"gitops", "app"}
+
+    filtered_upsert: dict[str, bytes] = {}
+    for relative_path, content in sorted(upsert_files.items()):
+        service_name = _service_name_from_repo_path(relative_path)
+        if not service_name:
+            continue
+        if classify_component(service_name, relative_path) in allowed_components:
+            filtered_upsert[relative_path] = content
+
+    filtered_delete: list[str] = []
+    for relative_path in sorted(set(delete_files)):
+        service_name = _service_name_from_repo_path(relative_path)
+        if not service_name:
+            continue
+        if classify_component(service_name, relative_path) in allowed_components:
+            filtered_delete.append(relative_path)
+
+    return filtered_upsert, filtered_delete
+
+
 def load_api_modules(repo_root: Path) -> tuple[Any, Any, Any, Any]:
     from TARS.config.loader import load_all_configs
     from TARS.scaffold.github_client import GitHubAPIError, GitHubClient
@@ -478,6 +518,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--github-token", default="")
     parser.add_argument("--base-branch", default="")
     parser.add_argument("--branch-prefix", default="idp/tars-svcs-check")
+    parser.add_argument("--write-scope", choices=["all", "gitops"], default="all")
     args = parser.parse_args(argv)
 
     repo_root = Path(args.repo_root).resolve()
@@ -502,8 +543,12 @@ def main(argv: list[str] | None = None) -> int:
     state_map = {result.name: (not result.needs_reconcile) for result in results}
     write_state_file(state_file, idp_config.projectName, state_map)
 
-    if args.write_worktree and (upsert_files or delete_files):
-        apply_to_worktree(repo_root, upsert_files, delete_files)
+    write_upsert_files, write_delete_files = filter_reconcile_files_for_scope(
+        args.write_scope, upsert_files, delete_files
+    )
+
+    if args.write_worktree and (write_upsert_files or write_delete_files):
+        apply_to_worktree(repo_root, write_upsert_files, write_delete_files)
 
     changed_services = sorted(
         {

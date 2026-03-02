@@ -235,6 +235,27 @@ def _write_key_value_output(values: dict[str, str]) -> None:
             handle.write(f"{key}={value}\n")
 
 
+def _load_svcs_document_for_update(svcs_path: Path) -> tuple[dict[str, Any], Any | None]:
+    try:
+        from ruamel.yaml import YAML  # type: ignore[import-not-found]
+    except Exception:
+        YAML = None  # type: ignore[assignment]
+
+    if YAML is None:
+        svcs_raw = yaml.safe_load(svcs_path.read_text(encoding="utf-8")) or {}
+        if not isinstance(svcs_raw, dict):
+            raise ValueError("SVCS.yaml root must be a mapping")
+        return svcs_raw, None
+
+    yaml_rt = YAML()
+    yaml_rt.preserve_quotes = True
+    with svcs_path.open("r", encoding="utf-8") as handle:
+        svcs_raw = yaml_rt.load(handle) or {}
+    if not isinstance(svcs_raw, dict):
+        raise ValueError("SVCS.yaml root must be a mapping")
+    return svcs_raw, yaml_rt
+
+
 def update_image_tags_main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Update image tags in SVCS.yaml for selected services")
     parser.add_argument("--repo-root", default=".")
@@ -282,9 +303,7 @@ def update_image_tags_main(argv: list[str] | None = None) -> int:
     if not owner:
         raise ValueError("ENDR.yaml config.git.owner is required")
 
-    svcs_raw = yaml.safe_load(svcs_path.read_text(encoding="utf-8")) or {}
-    if not isinstance(svcs_raw, dict):
-        raise ValueError("SVCS.yaml root must be a mapping")
+    svcs_raw, svcs_yaml_rt = _load_svcs_document_for_update(svcs_path)
     entries = svcs_raw.get("services", [])
     if not isinstance(entries, list):
         raise ValueError("SVCS.yaml services must be a list")
@@ -326,7 +345,11 @@ def update_image_tags_main(argv: list[str] | None = None) -> int:
 
     changed = len(updated) > 0
     if changed:
-        svcs_path.write_text(yaml.safe_dump(svcs_raw, sort_keys=False, allow_unicode=False), encoding="utf-8")
+        if svcs_yaml_rt is not None:
+            with svcs_path.open("w", encoding="utf-8") as handle:
+                svcs_yaml_rt.dump(svcs_raw, handle)
+        else:
+            svcs_path.write_text(yaml.safe_dump(svcs_raw, sort_keys=False, allow_unicode=False), encoding="utf-8")
 
     payload = {
         "tag": args.tag,
