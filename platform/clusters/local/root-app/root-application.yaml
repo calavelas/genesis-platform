@@ -1,0 +1,20 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: local-apps
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/calavelas/genesis-platform.git
+    targetRevision: main
+    path: platform/clusters/local/apps
+    directory:
+      recurse: true
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: argocd
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true

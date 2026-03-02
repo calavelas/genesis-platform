@@ -1,0 +1,23 @@
+# macOS
+.DS_Store
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+.pytest_cache/
+
+# Node
+node_modules/
+.next/
+
+# Local runtime
+.idp/
+
+# Tooling
+coverage/
+dist/
+build/
+
+# References
+references/

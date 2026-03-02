@@ -1,0 +1,17 @@
+name: validate-services
+
+on:
+  pull_request:
+    paths:
+      - 'services/**'
+      - 'apps/idp-api/**'
+      - 'apps/idp-web/**'
+      - '.github/workflows/validate-services.yml'
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Placeholder
+        run: echo "Service validation pipeline scaffolded."

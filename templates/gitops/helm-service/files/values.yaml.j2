@@ -1,0 +1,19 @@
+image:
+  repository: {{ image_repository }}
+  tag: {{ image_tag }}
+  pullPolicy: IfNotPresent
+
+service:
+  port: {{ port }}
+
+resources:
+  requests:
+    cpu: {{ requests_cpu }}
+    memory: {{ requests_memory }}
+  limits:
+    cpu: {{ limits_cpu }}
+    memory: {{ limits_memory }}
+
+ingress:
+  enabled: {{ ingress_enabled }}
+  host: {{ ingress_host }}
