@@ -1,5 +1,14 @@
 services:
-- name: cooper
+# - name: cooper
+#   namespace: demo
+#   deployTo:
+#   - local
+#   generator:
+#     service:
+#       template: python-fastapi
+#     gitops:
+#       template: helm-service
+- name: brand
   namespace: demo
   deployTo:
   - local
@@ -8,21 +17,12 @@ services:
       template: python-fastapi
     gitops:
       template: helm-service
-# - name: brand
-#   namespace: demo
-#   deployTo:
-#   - local
-#   generator:
-#     service:
-#       template: python-fastapi
-#     gitops:
-#       template: helm-service
-# - name: miller
-#   namespace: demo
-#   deployTo:
-#   - local
-#   generator:
-#     service:
-#       template: python-fastapi
-#     gitops:
-#       template: helm-service
+- name: miller
+  namespace: demo
+  deployTo:
+  - local
+  generator:
+    service:
+      template: python-fastapi
+    gitops:
+      template: helm-service
