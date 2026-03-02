@@ -46,5 +46,5 @@ Total Services Running: 1
 
 | Service Name | Template |
 | --- | --- |
-| cooper | python-fastapi |
+| brand | python-fastapi |
 <!-- TARS:SVCS_TABLE_END -->
