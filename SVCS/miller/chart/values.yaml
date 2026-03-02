@@ -1,5 +1,5 @@
 image:
-  repository: calavelas/cooper
+  repository: calavelas/miller
   tag: 0.1.0
   pullPolicy: IfNotPresent
 
