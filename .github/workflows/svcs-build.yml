@@ -10,7 +10,7 @@ on:
       - 'TARS/TARS.py'
   workflow_run:
     workflows:
-      - tars-init
+      - TARS - Init and Reconcile
     types:
       - completed
   workflow_dispatch:
@@ -206,11 +206,11 @@ jobs:
   build-and-push:
     name: Build and Push (${{ matrix.service }})
     needs: services-change-discovery
-    if: needs.services-change-discovery.result == 'success' && needs.services-change-discovery.outputs.has_services == 'true'
+    if: needs['services-change-discovery'].result == 'success' && needs['services-change-discovery'].outputs.has_services == 'true'
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
-      matrix: ${{ fromJson(needs.services-change-discovery.outputs.matrix || '{"include":[]}') }}
+      matrix: ${{ fromJson(needs['services-change-discovery'].outputs.matrix || '{"include":[]}') }}
     steps:
       - uses: actions/checkout@v4
 
@@ -242,10 +242,10 @@ jobs:
       - services-change-discovery
       - build-and-push
     if: >
-      needs.services-change-discovery.result == 'success' &&
-      needs.services-change-discovery.outputs.has_services == 'true' &&
-      needs.services-change-discovery.outputs.services != '' &&
-      needs.build-and-push.result == 'success' &&
+      needs['services-change-discovery'].result == 'success' &&
+      needs['services-change-discovery'].outputs.has_services == 'true' &&
+      needs['services-change-discovery'].outputs.services != '' &&
+      needs['build-and-push'].result == 'success' &&
       (
         (github.event_name == 'push' && github.ref_name == 'main') ||
         (github.event_name == 'workflow_run' && github.event.workflow_run.head_branch == 'main')
@@ -271,8 +271,8 @@ jobs:
           set -euo pipefail
           python3 TARS/TARS.py update-image-tags \
             --repo-root . \
-            --services "${{ needs.services-change-discovery.outputs.services }}" \
-            --tag "${{ needs.services-change-discovery.outputs.tag }}" \
+            --services "${{ needs['services-change-discovery'].outputs.services }}" \
+            --tag "${{ needs['services-change-discovery'].outputs.tag }}" \
             --allow-missing
           python3 TARS/TARS.py svcs-check \
             --repo-root . \
@@ -288,9 +288,9 @@ jobs:
             echo "No tag updates to commit."
             exit 0
           fi
-          git commit -m "TARS : Persist image tag ${{ needs.services-change-discovery.outputs.tag }} for ${{ needs.services-change-discovery.outputs.service_count }} service(s)"
+          git commit -m "TARS : Persist image tag ${{ needs['services-change-discovery'].outputs.tag }} for ${{ needs['services-change-discovery'].outputs.service_count }} service(s)"
           git push origin HEAD:${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_branch || github.ref_name }}
 
       - name: Summary
         run: |
-          echo "::notice title=SVCS Tag Persisted::tag=${{ needs.services-change-discovery.outputs.tag }}, services=${{ needs.services-change-discovery.outputs.services }}"
+          echo "::notice title=SVCS Tag Persisted::tag=${{ needs['services-change-discovery'].outputs.tag }}, services=${{ needs['services-change-discovery'].outputs.services }}"
