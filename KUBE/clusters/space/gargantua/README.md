@@ -1,4 +1,4 @@
-# Local ArgoCD Child Apps
+# Gargantua ArgoCD Child Apps
 
 Generated ArgoCD child `Application` manifests are written here.
 

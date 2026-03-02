@@ -170,8 +170,8 @@ run_platform_checks() {
   helm -n "${KYVERNO_NAMESPACE}" status kyverno >/dev/null
   helm -n "${MONITORING_NAMESPACE}" status kube-prometheus-stack >/dev/null
 
-  log "verifying ArgoCD root application"
-  kubectl -n "${ARGOCD_NAMESPACE}" get application root-app >/dev/null
+  log "verifying ArgoCD bootstrap application"
+  kubectl -n "${ARGOCD_NAMESPACE}" get application space >/dev/null
 
   log "platform smoke checks passed"
 }

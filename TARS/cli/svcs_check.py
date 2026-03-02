@@ -11,6 +11,8 @@ from typing import Any
 
 import yaml
 
+from TARS.config.paths import cluster_apps_abs_dir, cluster_apps_repo_dir
+
 
 @dataclass(slots=True)
 class ServiceReconcileResult:
@@ -44,21 +46,21 @@ def write_github_output(values: dict[str, str]) -> None:
             handle.write(f"{key}={value}\n")
 
 
-def classify_component(service_name: str, repo_path: str) -> str:
-    if repo_path == f"KUBE/clusters/local/apps/{service_name}.yaml":
+def classify_component(service_name: str, repo_path: str, apps_repo_dir: str) -> str:
+    if repo_path == f"{apps_repo_dir}/{service_name}.yaml":
         return "app"
     if repo_path.startswith(f"SVCS/{service_name}/chart/"):
         return "gitops"
     return "service"
 
 
-def _service_name_from_repo_path(repo_path: str) -> str | None:
+def _service_name_from_repo_path(repo_path: str, apps_repo_dir: str) -> str | None:
     if repo_path.startswith("SVCS/"):
         parts = Path(repo_path).parts
         if len(parts) >= 2 and parts[1]:
             return parts[1]
 
-    prefix = "KUBE/clusters/local/apps/"
+    prefix = f"{apps_repo_dir}/"
     if repo_path.startswith(prefix) and repo_path.endswith(".yaml"):
         return Path(repo_path).stem
 
@@ -66,7 +68,10 @@ def _service_name_from_repo_path(repo_path: str) -> str | None:
 
 
 def filter_reconcile_files_for_scope(
-    scope: str, upsert_files: dict[str, bytes], delete_files: list[str]
+    scope: str,
+    apps_repo_dir: str,
+    upsert_files: dict[str, bytes],
+    delete_files: list[str],
 ) -> tuple[dict[str, bytes], list[str]]:
     if scope == "all":
         return upsert_files, delete_files
@@ -75,18 +80,18 @@ def filter_reconcile_files_for_scope(
 
     filtered_upsert: dict[str, bytes] = {}
     for relative_path, content in sorted(upsert_files.items()):
-        service_name = _service_name_from_repo_path(relative_path)
+        service_name = _service_name_from_repo_path(relative_path, apps_repo_dir)
         if not service_name:
             continue
-        if classify_component(service_name, relative_path) in allowed_components:
+        if classify_component(service_name, relative_path, apps_repo_dir) in allowed_components:
             filtered_upsert[relative_path] = content
 
     filtered_delete: list[str] = []
     for relative_path in sorted(set(delete_files)):
-        service_name = _service_name_from_repo_path(relative_path)
+        service_name = _service_name_from_repo_path(relative_path, apps_repo_dir)
         if not service_name:
             continue
-        if classify_component(service_name, relative_path) in allowed_components:
+        if classify_component(service_name, relative_path, apps_repo_dir) in allowed_components:
             filtered_delete.append(relative_path)
 
     return filtered_upsert, filtered_delete
@@ -156,7 +161,7 @@ def write_state_file(state_file: Path, project_name: str, state_map: dict[str, b
     state_file.write_text(rendered, encoding="utf-8")
 
 
-def discover_managed_services(repo_root: Path) -> set[str]:
+def discover_managed_services(repo_root: Path, idp_config: Any) -> set[str]:
     managed: set[str] = set()
     services_root = repo_root / "SVCS"
     if services_root.exists():
@@ -168,7 +173,7 @@ def discover_managed_services(repo_root: Path) -> set[str]:
             if (entry / "chart" / "values.yaml").exists() or (entry / "Dockerfile").exists():
                 managed.add(entry.name)
 
-    apps_root = repo_root / "KUBE" / "clusters" / "local" / "apps"
+    apps_root = cluster_apps_abs_dir(repo_root, idp_config)
     if apps_root.exists():
         for file_path in apps_root.glob("*.y*ml"):
             if not file_path.is_file():
@@ -179,9 +184,9 @@ def discover_managed_services(repo_root: Path) -> set[str]:
     return managed
 
 
-def collect_service_files_for_delete(repo_root: Path, service_name: str) -> list[str]:
+def collect_service_files_for_delete(repo_root: Path, idp_config: Any, service_name: str) -> list[str]:
     files: set[str] = set()
-    app_file = repo_root / "KUBE" / "clusters" / "local" / "apps" / f"{service_name}.yaml"
+    app_file = cluster_apps_abs_dir(repo_root, idp_config) / f"{service_name}.yaml"
     if app_file.exists() and app_file.is_file():
         files.add(app_file.relative_to(repo_root).as_posix())
 
@@ -306,6 +311,7 @@ def reconcile(
 ) -> tuple[Any, list[ServiceReconcileResult], dict[str, bytes], list[str], list[RemovedServiceResult]]:
     load_all_configs, render_scaffold_for_service, _, _ = load_api_modules(repo_root)
     idp_config, services_config, _ = load_all_configs()
+    apps_repo_dir = cluster_apps_repo_dir(idp_config)
 
     reconcile_root = runtime_dir / "staging" / "tars"
     reconcile_root.mkdir(parents=True, exist_ok=True)
@@ -328,7 +334,7 @@ def reconcile(
 
         for relative_path, expected_content in sorted(expected_files.items()):
             target = repo_root / relative_path
-            component = classify_component(service.name, relative_path)
+            component = classify_component(service.name, relative_path, apps_repo_dir)
             if not target.exists():
                 component_synced[component] = False
                 missing_files.append(relative_path)
@@ -356,13 +362,13 @@ def reconcile(
         )
 
     desired_services = {service.name for service in services_config.services}
-    managed_services = discover_managed_services(repo_root)
+    managed_services = discover_managed_services(repo_root, idp_config)
     removed_services = sorted(managed_services - desired_services)
 
     removed_results: list[RemovedServiceResult] = []
     delete_files: list[str] = []
     for removed_service in removed_services:
-        deleted_files = collect_service_files_for_delete(repo_root, removed_service)
+        deleted_files = collect_service_files_for_delete(repo_root, idp_config, removed_service)
         if not deleted_files:
             continue
         delete_files.extend(deleted_files)
@@ -544,7 +550,10 @@ def main(argv: list[str] | None = None) -> int:
     write_state_file(state_file, idp_config.projectName, state_map)
 
     write_upsert_files, write_delete_files = filter_reconcile_files_for_scope(
-        args.write_scope, upsert_files, delete_files
+        args.write_scope,
+        cluster_apps_repo_dir(idp_config),
+        upsert_files,
+        delete_files,
     )
 
     if args.write_worktree and (write_upsert_files or write_delete_files):

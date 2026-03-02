@@ -22,6 +22,7 @@ Current endpoints:
 - `GET /api/health`
 - `GET /api/config/validate`
 - `GET /api/config`
+- `GET /api/plex/universe` (powered by `PLEX` domain module)
 - `POST /api/services` (supports `dryRun`)
 
 Required env for PR creation (`dryRun=false`):

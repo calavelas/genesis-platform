@@ -16,6 +16,21 @@ class ClusterConfig(BaseModel):
     name: str
     namespaceDefault: str = Field(default="default")
     argocdNamespace: str = Field(default="argocd")
+    gitopsClusterDir: str = Field(default="local")
+    gitopsAppsDir: str = Field(default="apps")
+    gitopsRootAppDir: str = Field(default="core")
+
+    @field_validator("gitopsClusterDir", "gitopsAppsDir", "gitopsRootAppDir")
+    @classmethod
+    def validate_gitops_path_segment(cls, value: str) -> str:
+        normalized = value.strip()
+        if not normalized:
+            raise ValueError("must not be blank")
+        if "/" in normalized or "\\" in normalized:
+            raise ValueError("must be a single path segment")
+        if not K8S_DNS_LABEL_RE.match(normalized):
+            raise ValueError("must match Kubernetes DNS label format")
+        return normalized
 
 
 class RuntimeConfig(BaseModel):

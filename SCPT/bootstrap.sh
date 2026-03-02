@@ -82,7 +82,7 @@ install_monitoring() {
 }
 
 apply_argocd_bootstrap() {
-  local bootstrap_file="$ROOT_DIR/KUBE/argocd/bootstrap.yaml"
+  local bootstrap_file="$ROOT_DIR/KUBE/clusters/space/space.yaml"
   if [[ ! -f "$bootstrap_file" ]]; then
     log "missing file: $bootstrap_file"
     exit 1

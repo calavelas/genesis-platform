@@ -12,6 +12,9 @@ config:
     name: genesis-local
     namespaceDefault: default
     argocdNamespace: argocd
+    gitopsClusterDir: space
+    gitopsAppsDir: gargantua
+    gitopsRootAppDir: core
   environments:
     - local
 

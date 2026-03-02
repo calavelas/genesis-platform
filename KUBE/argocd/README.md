@@ -2,5 +2,8 @@
 
 This folder contains ArgoCD bootstrap manifests.
 
-Key file:
-- `bootstrap.yaml`: installs the root ArgoCD `Application` (app-of-apps entrypoint) for the local cluster.
+Canonical bootstrap manifest:
+- `KUBE/clusters/space/space.yaml`: installs the space bootstrap `Application` (app-of-apps entrypoint).
+
+Compatibility file:
+- `bootstrap.yaml`: legacy path kept for compatibility.

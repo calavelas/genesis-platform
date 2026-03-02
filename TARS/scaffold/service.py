@@ -9,6 +9,7 @@ from jinja2 import Environment, StrictUndefined
 from pydantic import BaseModel, Field, model_validator
 
 from TARS.config.loader import load_all_configs
+from TARS.config.paths import service_app_manifest_repo_path
 from TARS.config.models import (
     IDPConfig,
     IngressConfig,
@@ -116,6 +117,7 @@ def _build_template_context(
     service: ServiceEntry,
     github_owner: str,
     github_repo: str,
+    argocd_namespace: str,
 ) -> dict[str, object]:
     image = service.overrides.image or f"{github_owner}/{service.name}:0.1.0"
     image_repository, image_tag = _split_image(image)
@@ -139,6 +141,7 @@ def _build_template_context(
         "port": service.overrides.port,
         "github_owner": github_owner,
         "github_repo": github_repo,
+        "argocd_namespace": argocd_namespace,
         "image_repository": image_repository,
         "image_tag": image_tag,
         "requests_cpu": requests_cpu,
@@ -231,6 +234,7 @@ def _render_updated_services_config(services_config_path: Path, service: Service
 def _collect_commit_files(
     stage_service_dir: Path,
     stage_gitops_dir: Path,
+    idp_config: IDPConfig,
     service_name: str,
 ) -> dict[str, bytes]:
     files: dict[str, bytes] = {}
@@ -247,7 +251,7 @@ def _collect_commit_files(
             continue
         relative = file_path.relative_to(stage_gitops_dir).as_posix()
         if relative == "argocd-application.yaml":
-            repo_path = f"KUBE/clusters/local/apps/{service_name}.yaml"
+            repo_path = service_app_manifest_repo_path(idp_config, service_name)
         else:
             repo_path = f"SVCS/{service_name}/chart/{relative}"
         files[repo_path] = file_path.read_bytes()
@@ -268,7 +272,12 @@ def render_scaffold_for_service(
     service_template_path = _resolve_local_template_path(repo_root, service_template)
     gitops_template_path = _resolve_local_template_path(repo_root, gitops_template)
 
-    context = _build_template_context(service, idp_config.config.git.owner, idp_config.config.git.repo)
+    context = _build_template_context(
+        service,
+        idp_config.config.git.owner,
+        idp_config.config.git.repo,
+        idp_config.config.cluster.argocdNamespace,
+    )
 
     stage_service_dir = staging_root / "service"
     stage_gitops_dir = staging_root / "gitops"
@@ -279,7 +288,7 @@ def render_scaffold_for_service(
 
     _render_template_tree(service_template_path, stage_service_dir, context)
     _render_template_tree(gitops_template_path, stage_gitops_dir, context)
-    return _collect_commit_files(stage_service_dir, stage_gitops_dir, service.name)
+    return _collect_commit_files(stage_service_dir, stage_gitops_dir, idp_config, service.name)
 
 
 def _build_branch_name(service_name: str) -> str:

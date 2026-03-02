@@ -2,7 +2,7 @@ apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
   name: {{ service_name }}
-  namespace: argocd
+  namespace: {{ argocd_namespace }}
 spec:
   project: default
   source:

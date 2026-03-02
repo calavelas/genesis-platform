@@ -46,9 +46,9 @@ Related:
   KUBE/
     argocd/
     clusters/
-      local/
-        root-app/
-        apps/
+      space/
+        core/
+        gargantua/
     policies/
     monitoring/
   SVCS/
@@ -102,8 +102,8 @@ Deliverables:
 - `SCPT/bootstrap.sh`
 - `SCPT/Makefile` targets: `bootstrap`, `down`, `port-forward`
 - ArgoCD install and root app bootstrap:
-  - `KUBE/argocd/bootstrap.yaml`
-  - `KUBE/clusters/local/root-app/*`
+  - `KUBE/clusters/space/space.yaml`
+  - `KUBE/clusters/space/core/*`
 - ingress controller install and documented URLs
 
 Exit criteria:
