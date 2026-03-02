@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 
-app = FastAPI(title="brand")
+app = FastAPI(title="cooper")
 
 
 @app.get("/healthz")
