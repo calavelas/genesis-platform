@@ -32,3 +32,12 @@ services:
       template: helm-service
   overrides:
     image: calavelas/edmund:git-6777046
+- name: cooper
+  namespace: demo
+  deployTo:
+  - local
+  generator:
+    service:
+      template: python-fastapi
+    gitops:
+      template: helm-service
