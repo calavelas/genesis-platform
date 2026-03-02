@@ -10,7 +10,16 @@ services:
 #       template: helm-service
 #   overrides:
 #     image: calavelas/endr-svc-demo:git-123abcd
-- name: cooper
+- name: brand
+  namespace: demo
+  deployTo:
+  - local
+  generator:
+    service:
+      template: python-fastapi
+    gitops:
+      template: helm-service
+- name: miller
   namespace: demo
   deployTo:
   - local
