@@ -77,12 +77,13 @@ def build_matrix(
         image_repository = image_cfg.get("repository")
         image_tag = image_cfg.get("tag")
         if registry == "dockerhub":
+            repo_name = service
             if not image_repository:
-                image_repository = f"docker.io/{image_owner}/{service}"
+                repo_name = service
             else:
                 repo = str(image_repository).strip().rstrip("/")
                 if repo.startswith("docker.io/"):
-                    image_repository = repo
+                    repo = repo[len("docker.io/") :]
                 else:
                     first_segment = repo.split("/", 1)[0]
                     # Docker Hub short form like "user/repo" is allowed.
@@ -91,7 +92,18 @@ def build_matrix(
                             f"{service}: image.repository '{repo}' is not Docker Hub (expected docker.io/* or user/repo)"
                         )
                         continue
-                    image_repository = f"docker.io/{repo}"
+                parts = [part for part in repo.split("/") if part]
+                if not parts:
+                    skipped.append(f"{service}: image.repository is empty after normalization")
+                    continue
+                repo_name = parts[-1]
+                if len(parts) >= 2:
+                    namespace = parts[-2]
+                    if namespace != image_owner:
+                        skipped.append(
+                            f"{service}: image.repository namespace '{namespace}' does not match configured Docker Hub owner '{image_owner}'"
+                        )
+                        continue
         else:
             if not image_repository:
                 image_repository = f"ghcr.io/{image_owner}/{service}"
@@ -109,7 +121,12 @@ def build_matrix(
                 "service": service,
                 "context": f"services/{service}",
                 "dockerfile": f"services/{service}/Dockerfile",
-                "image": f"{image_repository}:{image_tag}",
+                "image_tag": str(image_tag),
+                **(
+                    {"repo_name": repo_name}
+                    if registry == "dockerhub"
+                    else {"image": f"{image_repository}:{image_tag}"}
+                ),
             }
         )
 

@@ -89,4 +89,4 @@ jobs:
           context: ${{ matrix.context }}
           file: ${{ matrix.dockerfile }}
           push: true
-          tags: ${{ matrix.image }}
+          tags: docker.io/${{ secrets.DOCKERHUB_USERNAME }}/${{ matrix.repo_name }}:${{ matrix.image_tag }}
