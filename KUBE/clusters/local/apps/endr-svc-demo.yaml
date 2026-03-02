@@ -1,14 +1,14 @@
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: demo
+  name: endr-svc-demo
   namespace: argocd
 spec:
   project: default
   source:
     repoURL: https://github.com/calavelas/ENDR.git
     targetRevision: main
-    path: SVCS/demo/chart
+    path: SVCS/endr-svc-demo/chart
   destination:
     server: https://kubernetes.default.svc
     namespace: demo

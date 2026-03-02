@@ -1,5 +1,5 @@
 image:
-  repository: calavelas/demo
+  repository: calavelas/endr-svc-demo
   tag: 0.0.1
   pullPolicy: IfNotPresent
 
@@ -16,4 +16,4 @@ resources:
 
 ingress:
   enabled: true
-  host: hello.local
+  host: endr-svc-demo.local
