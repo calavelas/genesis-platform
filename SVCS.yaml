@@ -10,3 +10,21 @@ services:
       template: helm-service
   overrides:
     image: calavelas/miller:git-2de2dec
+- name: mann
+  namespace: demo
+  deployTo:
+  - local
+  generator:
+    service:
+      template: python-fastapi
+    gitops:
+      template: helm-service
+- name: edmund
+  namespace: demo
+  deployTo:
+  - local
+  generator:
+    service:
+      template: python-fastapi
+    gitops:
+      template: helm-service
