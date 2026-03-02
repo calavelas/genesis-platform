@@ -9,7 +9,7 @@ services:
     gitops:
       template: helm-service
   overrides:
-    image: calavelas/miller:git-786d5f9
+    image: calavelas/miller:git-6777046
 - name: mann
   namespace: demo
   deployTo:
@@ -19,6 +19,8 @@ services:
       template: python-fastapi
     gitops:
       template: helm-service
+  overrides:
+    image: calavelas/mann:git-6777046
 - name: edmund
   namespace: demo
   deployTo:
@@ -28,3 +30,5 @@ services:
       template: python-fastapi
     gitops:
       template: helm-service
+  overrides:
+    image: calavelas/edmund:git-6777046

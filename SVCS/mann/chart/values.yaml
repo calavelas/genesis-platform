@@ -1,6 +1,6 @@
 image:
   repository: calavelas/mann
-  tag: 0.1.0
+  tag: git-6777046
   pullPolicy: IfNotPresent
 
 service:
