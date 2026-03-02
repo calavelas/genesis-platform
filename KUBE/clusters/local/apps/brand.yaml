@@ -1,14 +1,14 @@
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: cooper
+  name: brand
   namespace: argocd
 spec:
   project: default
   source:
     repoURL: https://github.com/calavelas/ENDR.git
     targetRevision: main
-    path: SVCS/cooper/chart
+    path: SVCS/brand/chart
   destination:
     server: https://kubernetes.default.svc
     namespace: demo

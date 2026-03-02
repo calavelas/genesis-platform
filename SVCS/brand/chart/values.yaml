@@ -1,6 +1,6 @@
 image:
-  repository: calavelas/cooper
-  tag: 0.1.0
+  repository: calavelas/brand
+  tag: git-ad46b22
   pullPolicy: IfNotPresent
 
 service:
