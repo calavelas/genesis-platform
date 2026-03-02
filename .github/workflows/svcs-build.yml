@@ -155,20 +155,20 @@ jobs:
             local csv="$1"
             local indent="${2:-}"
             if [ -z "$csv" ]; then
-              echo "${indent}- 1. none"
+              echo "${indent}- 1) none"
               return
             fi
-            printf "%s\n" "$csv" | tr ',' '\n' | sed '/^$/d' | awk -v p="$indent" '{ printf "%s- %d. `%s`\n", p, NR, $0 }'
+            printf "%s\n" "$csv" | tr ',' '\n' | sed '/^$/d' | awk -v p="$indent" '{ printf "%s- %d) `%s`\n", p, NR, $0 }'
           }
 
           as_numbered_lines() {
             local lines="$1"
             local indent="${2:-}"
             if [ -z "$lines" ]; then
-              echo "${indent}- 1. none"
+              echo "${indent}- 1) none"
               return
             fi
-            printf "%s\n" "$lines" | sed '/^$/d' | awk -v p="$indent" '{ printf "%s- %d. `%s`\n", p, NR, $0 }'
+            printf "%s\n" "$lines" | sed '/^$/d' | awk -v p="$indent" '{ printf "%s- %d) `%s`\n", p, NR, $0 }'
           }
 
           MATRIX_JSON='${{ steps.discover.outputs.matrix }}'
