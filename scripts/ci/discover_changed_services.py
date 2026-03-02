@@ -53,7 +53,8 @@ def load_values_yaml(path: Path) -> dict[str, Any]:
 def build_matrix(
     repo_root: Path,
     services: list[str],
-    repository_owner: str,
+    image_owner: str,
+    registry: str,
 ) -> tuple[list[dict[str, str]], list[str]]:
     matrix: list[dict[str, str]] = []
     skipped: list[str] = []
@@ -75,16 +76,33 @@ def build_matrix(
 
         image_repository = image_cfg.get("repository")
         image_tag = image_cfg.get("tag")
-        if not image_repository:
-            image_repository = f"ghcr.io/{repository_owner}/{service}"
+        if registry == "dockerhub":
+            if not image_repository:
+                image_repository = f"docker.io/{image_owner}/{service}"
+            else:
+                repo = str(image_repository).strip().rstrip("/")
+                if repo.startswith("docker.io/"):
+                    image_repository = repo
+                else:
+                    first_segment = repo.split("/", 1)[0]
+                    # Docker Hub short form like "user/repo" is allowed.
+                    if "." in first_segment or ":" in first_segment or first_segment == "localhost":
+                        skipped.append(
+                            f"{service}: image.repository '{repo}' is not Docker Hub (expected docker.io/* or user/repo)"
+                        )
+                        continue
+                    image_repository = f"docker.io/{repo}"
+        else:
+            if not image_repository:
+                image_repository = f"ghcr.io/{image_owner}/{service}"
+            if not str(image_repository).startswith("ghcr.io/"):
+                skipped.append(
+                    f"{service}: image.repository '{image_repository}' is not GHCR (ghcr.io/*), skipping publish"
+                )
+                continue
+
         if not image_tag:
             image_tag = "0.1.0"
-
-        if not str(image_repository).startswith("ghcr.io/"):
-            skipped.append(
-                f"{service}: image.repository '{image_repository}' is not GHCR (ghcr.io/*), skipping publish"
-            )
-            continue
 
         matrix.append(
             {
@@ -132,18 +150,24 @@ def main() -> int:
     parser.add_argument("--repo-root", default=".")
     parser.add_argument("--before", default="")
     parser.add_argument("--after", default="")
-    parser.add_argument("--repository-owner", required=True)
+    parser.add_argument("--registry", choices=["ghcr", "dockerhub"], default="ghcr")
+    parser.add_argument("--image-owner", default="")
+    parser.add_argument("--repository-owner", default="")
     parser.add_argument("--all-services", action="store_true")
     args = parser.parse_args()
 
     repo_root = Path(args.repo_root).resolve()
+    image_owner = args.image_owner or args.repository_owner
+    if not image_owner:
+        parser.error("--image-owner is required (or --repository-owner for backward compatibility)")
+
     if args.all_services:
         changed_services = list_all_services(repo_root)
     else:
         changed_files = get_changed_files(repo_root, args.before, args.after)
         changed_services = [s for f in changed_files if (s := service_name_from_path(f))]
 
-    matrix, skipped = build_matrix(repo_root, changed_services, args.repository_owner)
+    matrix, skipped = build_matrix(repo_root, changed_services, image_owner, args.registry)
     write_github_output(matrix, skipped)
 
     print(json.dumps({"include": matrix, "skipped": skipped}, indent=2))

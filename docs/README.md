@@ -34,8 +34,15 @@
 ## CI/CD Notes
 - Workflow `genesis-reconcile.yml` runs on config-file changes and opens a reconcile PR using `scripts/ci/genesis.py`.
 - ArgoCD child app template now sets `syncOptions: [CreateNamespace=true]`.
-- On merge to `main`, workflow `publish-service-images.yml` detects changed services, builds images from `services/<name>/Dockerfile`, and pushes tags from each `services/<name>/chart/values.yaml` to GHCR.
+- On merge to `main`, workflow `publish-service-images.yml` detects changed services, builds images from `services/<name>/Dockerfile`, and pushes tags from each `services/<name>/chart/values.yaml` to Docker Hub.
 - The same workflow also supports manual `workflow_dispatch` to publish all services in one run.
+
+Required repo secrets for Docker Hub publish:
+- `DOCKERHUB_USERNAME`
+- `DOCKERHUB_PASSWORD`
+
+Image repository format for publish:
+- `services/<name>/chart/values.yaml` -> `image.repository` should be Docker Hub style (`docker.io/<user>/<repo>` or `<user>/<repo>`).
 
 Prerequisites for `make bootstrap`:
 - `k3d`
