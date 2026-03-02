@@ -1,6 +1,6 @@
 image:
-  repository: calavelas/hello-service
-  tag: 0.1.0
+  repository: calavelas/demo
+  tag: 0.0.1
   pullPolicy: IfNotPresent
 
 service:
@@ -15,5 +15,5 @@ resources:
     memory: 256Mi
 
 ingress:
-  enabled: false
+  enabled: true
   host: hello.local

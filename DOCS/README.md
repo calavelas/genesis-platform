@@ -21,8 +21,8 @@
 - `make -f SCPT/Makefile api` to run FastAPI backend.
 - `make -f SCPT/Makefile web` to run Next.js frontend.
 - `make -f SCPT/Makefile validate-config` to validate `ENDR.yaml` and `SVCS.yaml`.
-- `make -f SCPT/Makefile genesis` to run Phase 1 reconcile check (dry-run, no PR).
-- `make -f SCPT/Makefile genesis-write` to render reconcile changes into working tree.
+- `make -f SCPT/Makefile svcs-check` to run Phase 1 reconcile check (dry-run, no PR).
+- `make -f SCPT/Makefile svcs-sync` to render reconcile changes into working tree.
 - `make -f SCPT/Makefile smoke-test` to run automated API/config + platform smoke checks.
 - `make -f SCPT/Makefile smoke-test-api` to run API/config checks only.
 - `make -f SCPT/Makefile smoke-test-platform` to run bootstrap/platform checks only.
@@ -33,9 +33,9 @@
   - `dryRun: false` -> render + create branch + commit files + open GitHub PR.
 
 ## CI/CD Notes
-- Workflow `genesis-reconcile.yml` runs on config-file changes and opens a reconcile PR using `TARS/TARS.py genesis`.
+- Workflow `tars-init.yml` runs on config-file changes and opens a reconcile PR using `TARS/TARS.py svcs-check`.
 - ArgoCD child app template now sets `syncOptions: [CreateNamespace=true]`.
-- On merge to `main`, workflow `publish-service-images.yml` detects changed services, builds images from `SVCS/<name>/Dockerfile`, and pushes tags from each `SVCS/<name>/chart/values.yaml` to Docker Hub.
+- On merge to `main`, workflow `svcs-publish.yml` detects changed services, builds images from `SVCS/<name>/Dockerfile`, and pushes tags from each `SVCS/<name>/chart/values.yaml` to Docker Hub.
 - The same workflow also supports manual `workflow_dispatch` to publish all services in one run.
 
 Required repo secrets for Docker Hub publish:

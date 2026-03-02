@@ -1,4 +1,4 @@
-# Phase 1 - Genesis Reconcile Automation (Config -> Generated PR)
+# Phase 1 - TARS SVCS Check Automation (Config -> Generated PR)
 
 This phase implements the config-driven GitOps automation path without UI/API input forms.
 
@@ -13,8 +13,8 @@ When `ENDR.yaml` or `SVCS.yaml` changes:
 
 ## Script
 
-- Path: `TARS/TARS.py` (subcommand: `genesis`)
-- State output: `.idp/runtime/genesis-services-state.yaml`
+- Path: `TARS/TARS.py` (subcommand: `svcs-check`)
+- State output: `.idp/runtime/tars-svcs-state.yaml`
 
 State file format (Genesis-style):
 
@@ -28,7 +28,7 @@ state:
 `true` means service files are already in sync with config/templates.
 `false` means reconciliation changes are required.
 
-## What `genesis` reconcile checks
+## What `svcs-check` checks
 
 For each service in `SVCS.yaml`, it renders expected outputs from:
 - service template (`templates.service[*]` from `ENDR.yaml`)
@@ -41,7 +41,7 @@ Then it compares expected content with repo files:
 If file is missing or content differs, it is marked for reconcile and included in PR changes.
 
 Service removal handling:
-- If a service exists in repo-managed paths but is removed from `SVCS.yaml`, `TARS/TARS.py genesis` marks it as removed and stages file deletions.
+- If a service exists in repo-managed paths but is removed from `SVCS.yaml`, `TARS/TARS.py svcs-check` marks it as removed and stages file deletions.
 - Deletions include:
   - `KUBE/clusters/local/apps/<service>.yaml`
   - `SVCS/<service>/**`
@@ -49,7 +49,7 @@ Service removal handling:
 
 ## GitHub Actions flow
 
-Workflow: `.github/workflows/genesis-reconcile.yml`
+Workflow: `.github/workflows/tars-init.yml`
 
 Trigger:
 - `push` to `main` when changed paths include:
@@ -58,7 +58,7 @@ Trigger:
 - manual `workflow_dispatch`
 
 Behavior:
-- Runs `TARS/TARS.py genesis --open-pr`
+- Runs `TARS/TARS.py svcs-check --open-pr`
 - If drift exists, creates branch + PR automatically.
 - If no drift exists, exits cleanly with no PR.
 
@@ -75,19 +75,19 @@ make -f SCPT/Makefile validate-config
 Dry-run reconcile (no writes, no PR):
 
 ```bash
-make -f SCPT/Makefile genesis
+make -f SCPT/Makefile svcs-check
 ```
 
 Write generated files to local worktree (still no PR):
 
 ```bash
-make -f SCPT/Makefile genesis-write
+make -f SCPT/Makefile svcs-sync
 ```
 
 Open PR manually from local machine (optional):
 
 ```bash
-GITHUB_TOKEN=<your_token> ENDR/.venv/bin/python TARS/TARS.py genesis --repo-root . --open-pr
+GITHUB_TOKEN=<your_token> ENDR/.venv/bin/python TARS/TARS.py svcs-check --repo-root . --open-pr
 ```
 
 ## Portfolio framing

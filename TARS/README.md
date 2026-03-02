@@ -8,7 +8,7 @@ It is used by:
 
 ## Submodules
 - `api/`: API-compatible handlers and models consumed by `ENDR`.
-- `cli/`: command-line reconcile entrypoint (`genesis` behavior).
+- `cli/`: command-line reconcile entrypoint (`svcs-check` behavior).
 - `config/`: config schema + loaders for `ENDR.yaml` and `SVCS.yaml`.
 - `scaffold/`: template rendering and GitHub PR orchestration logic.
 - `templates/`: golden path templates for service and GitOps assets.

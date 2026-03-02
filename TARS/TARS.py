@@ -16,7 +16,7 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
-from TARS.cli.genesis import main as genesis_main
+from TARS.cli.svcs_check import main as svcs_check_main
 
 
 def run(cmd: list[str], cwd: Path) -> str:
@@ -201,10 +201,10 @@ def discover_changed_services_main(argv: list[str] | None = None) -> int:
 def print_help() -> None:
     print(
         "Usage:\n"
-        "  python3 TARS/TARS.py genesis [GENESIS_ARGS...]\n"
+        "  python3 TARS/TARS.py svcs-check [SVCS_CHECK_ARGS...]\n"
         "  python3 TARS/TARS.py discover-changed-services [DISCOVER_ARGS...]\n\n"
         "Examples:\n"
-        "  python3 TARS/TARS.py genesis --repo-root . --open-pr\n"
+        "  python3 TARS/TARS.py svcs-check --repo-root . --open-pr\n"
         "  python3 TARS/TARS.py discover-changed-services --repo-root . --before <sha> --after <sha> --registry dockerhub --image-owner <owner>\n"
     )
 
@@ -212,7 +212,7 @@ def print_help() -> None:
 def main(argv: list[str] | None = None) -> int:
     args = list(sys.argv[1:] if argv is None else argv)
     if not args:
-        return genesis_main([])
+        return svcs_check_main([])
 
     subcommand = args[0]
     sub_args = args[1:]
@@ -221,15 +221,15 @@ def main(argv: list[str] | None = None) -> int:
         print_help()
         return 0
 
-    if subcommand == "genesis":
-        return genesis_main(sub_args)
+    if subcommand in {"svcs-check", "check"}:
+        return svcs_check_main(sub_args)
 
     if subcommand in {"discover-changed-services", "discover"}:
         return discover_changed_services_main(sub_args)
 
-    # Backward compatibility: allow calling with only genesis flags.
+    # Allow calling with only svcs-check flags.
     if subcommand.startswith("-"):
-        return genesis_main(args)
+        return svcs_check_main(args)
 
     print(f"unknown subcommand: {subcommand}", file=sys.stderr)
     print_help()

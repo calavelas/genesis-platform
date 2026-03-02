@@ -156,7 +156,7 @@ def reconcile(
     load_all_configs, render_scaffold_for_service, _, _ = load_api_modules(repo_root)
     idp_config, services_config, _ = load_all_configs()
 
-    reconcile_root = runtime_dir / "staging" / "genesis"
+    reconcile_root = runtime_dir / "staging" / "tars"
     reconcile_root.mkdir(parents=True, exist_ok=True)
 
     results: list[ServiceReconcileResult] = []
@@ -257,17 +257,17 @@ def open_reconcile_pr(
                 branch=branch_name,
                 file_path=file_path,
                 content_bytes=content,
-                commit_message=f"feat(genesis): reconcile generated assets ({file_path})",
+                commit_message=f"feat(tars): reconcile generated assets ({file_path})",
             )
         for file_path in sorted(set(delete_files), reverse=True):
             github_client.delete_file(
                 branch=branch_name,
                 file_path=file_path,
-                commit_message=f"feat(genesis): remove decommissioned service asset ({file_path})",
+                commit_message=f"feat(tars): remove decommissioned service asset ({file_path})",
             )
 
         pr = github_client.create_pull_request(
-            title="feat(genesis): reconcile generated service and GitOps assets",
+            title="feat(tars): reconcile generated service and GitOps assets",
             body=(
                 "Automated reconcile from `ENDR.yaml` and `SVCS.yaml`.\n\n"
                 f"Changed services ({len(changed_services)}): {', '.join(changed_services)}\n"
@@ -334,11 +334,11 @@ def build_summary(
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
-        description="Genesis Phase 1 reconcile: read config files, render expected assets, and open PR for drift"
+        description="TARS SVCS check: read config files, render expected assets, and open PR for drift"
     )
     parser.add_argument("--repo-root", default=".")
     parser.add_argument("--runtime-dir", default=".idp/runtime")
-    parser.add_argument("--state-file", default=".idp/runtime/genesis-services-state.yaml")
+    parser.add_argument("--state-file", default=".idp/runtime/tars-svcs-state.yaml")
     parser.add_argument("--endr-config", dest="endr_config", default="")
     parser.add_argument("--svcs-config", dest="svcs_config", default="")
     parser.add_argument("--idp-config", dest="endr_config", default="")
@@ -347,7 +347,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--write-worktree", action="store_true")
     parser.add_argument("--github-token", default="")
     parser.add_argument("--base-branch", default="")
-    parser.add_argument("--branch-prefix", default="idp/genesis-reconcile")
+    parser.add_argument("--branch-prefix", default="idp/tars-svcs-check")
     args = parser.parse_args(argv)
 
     repo_root = Path(args.repo_root).resolve()

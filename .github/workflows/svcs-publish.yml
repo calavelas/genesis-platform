@@ -1,4 +1,4 @@
-name: publish-service-images
+name: svcs-publish
 
 on:
   push:
@@ -6,7 +6,7 @@ on:
       - main
     paths:
       - 'SVCS/**'
-      - '.github/workflows/publish-service-images.yml'
+      - '.github/workflows/svcs-publish.yml'
       - 'TARS/TARS.py'
   workflow_dispatch:
 

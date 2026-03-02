@@ -6,7 +6,7 @@ config:
   git:
     provider: github
     owner: calavelas
-    repo: genesis-platform
+    repo: ENDR
     defaultBranch: main
   cluster:
     name: genesis-local

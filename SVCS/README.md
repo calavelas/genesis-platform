@@ -10,4 +10,4 @@ Each service typically includes:
 
 ## Notes
 - Service metadata source of truth is `SVCS.yaml`.
-- Reconcile automation (`TARS/TARS.py genesis`) creates/updates/removes service assets here.
+- Reconcile automation (`TARS/TARS.py svcs-check`) creates/updates/removes service assets here.

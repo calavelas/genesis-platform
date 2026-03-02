@@ -47,38 +47,53 @@ class GitHubClient:
         payload: dict[str, Any] | None = None,
         expected_statuses: tuple[int, ...] = (200,),
     ) -> dict[str, Any]:
-        url = f"{self.api_base}{path}"
+        url = path if path.startswith("http") else f"{self.api_base}{path}"
         body = None
         if payload is not None:
             body = json.dumps(payload).encode("utf-8")
 
-        req = request.Request(url=url, data=body, method=method)
-        req.add_header("Authorization", f"Bearer {self.token}")
-        req.add_header("Accept", "application/vnd.github+json")
-        req.add_header("X-GitHub-Api-Version", "2022-11-28")
-        if body is not None:
-            req.add_header("Content-Type", "application/json")
+        max_redirects = 5
+        redirect_codes = {301, 302, 307, 308}
 
-        try:
-            with request.urlopen(req, timeout=30, context=self.ssl_context) as response:  # noqa: S310
-                raw = response.read().decode("utf-8")
-                data = json.loads(raw) if raw else {}
-                if response.status not in expected_statuses:
-                    raise GitHubAPIError(
-                        f"unexpected status {response.status} for {method} {path}: {data}"
-                    )
-                return data
-        except error.HTTPError as exc:
-            raw = exc.read().decode("utf-8", errors="replace")
+        for _ in range(max_redirects + 1):
+            req = request.Request(url=url, data=body, method=method)
+            req.add_header("Authorization", f"Bearer {self.token}")
+            req.add_header("Accept", "application/vnd.github+json")
+            req.add_header("X-GitHub-Api-Version", "2022-11-28")
+            if body is not None:
+                req.add_header("Content-Type", "application/json")
+
             try:
-                data = json.loads(raw)
-            except Exception:  # noqa: BLE001
-                data = {"message": raw}
-            raise GitHubAPIError(
-                f"github api error {exc.code} for {method} {path}: {data}"
-            ) from exc
-        except error.URLError as exc:
-            raise GitHubAPIError(f"unable to reach GitHub API: {exc}") from exc
+                with request.urlopen(req, timeout=30, context=self.ssl_context) as response:  # noqa: S310
+                    raw = response.read().decode("utf-8")
+                    data = json.loads(raw) if raw else {}
+                    if response.status not in expected_statuses:
+                        raise GitHubAPIError(
+                            f"unexpected status {response.status} for {method} {path}: {data}"
+                        )
+                    return data
+            except error.HTTPError as exc:
+                raw = exc.read().decode("utf-8", errors="replace")
+                try:
+                    data = json.loads(raw) if raw else {}
+                except Exception:  # noqa: BLE001
+                    data = {"message": raw}
+
+                if exc.code in redirect_codes:
+                    redirect_url = exc.headers.get("Location", "")
+                    if not redirect_url and isinstance(data, dict):
+                        redirect_url = str(data.get("url", "")).strip()
+                    if redirect_url:
+                        url = redirect_url
+                        continue
+
+                raise GitHubAPIError(
+                    f"github api error {exc.code} for {method} {path}: {data}"
+                ) from exc
+            except error.URLError as exc:
+                raise GitHubAPIError(f"unable to reach GitHub API: {exc}") from exc
+
+        raise GitHubAPIError(f"too many redirects for {method} {path}")
 
     def get_ref_sha(self, branch: str) -> str:
         path = f"/repos/{self.owner}/{self.repo}/git/ref/heads/{parse.quote(branch, safe='')}"

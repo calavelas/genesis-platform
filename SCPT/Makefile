@@ -1,4 +1,4 @@
-.PHONY: bootstrap up down port-forward port-forward-argocd port-forward-grafana port-forward-prometheus api web validate-config smoke-test smoke-test-api smoke-test-platform genesis genesis-write
+.PHONY: bootstrap up down port-forward port-forward-argocd port-forward-grafana port-forward-prometheus api web validate-config smoke-test smoke-test-api smoke-test-platform svcs-check svcs-sync
 
 CLUSTER_NAME ?= genesis-local
 MAKEFILE_DIR := $(patsubst %/,%,$(dir $(abspath $(lastword $(MAKEFILE_LIST)))))
@@ -45,10 +45,10 @@ smoke-test-api:
 smoke-test-platform:
 	CLUSTER_NAME=$(CLUSTER_NAME) bash $(MAKEFILE_DIR)/smoke-test.sh platform
 
-genesis:
-	@echo "Running genesis reconcile (dry-run, no PR)..."
-	$(REPO_ROOT)/ENDR/.venv/bin/python $(REPO_ROOT)/TARS/TARS.py genesis --repo-root $(REPO_ROOT)
+svcs-check:
+	@echo "Running SVCS check (dry-run, no PR)..."
+	$(REPO_ROOT)/ENDR/.venv/bin/python $(REPO_ROOT)/TARS/TARS.py svcs-check --repo-root $(REPO_ROOT)
 
-genesis-write:
-	@echo "Running genesis reconcile and writing generated files to working tree..."
-	$(REPO_ROOT)/ENDR/.venv/bin/python $(REPO_ROOT)/TARS/TARS.py genesis --repo-root $(REPO_ROOT) --write-worktree
+svcs-sync:
+	@echo "Running SVCS check and writing generated files to working tree..."
+	$(REPO_ROOT)/ENDR/.venv/bin/python $(REPO_ROOT)/TARS/TARS.py svcs-check --repo-root $(REPO_ROOT) --write-worktree

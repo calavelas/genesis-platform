@@ -1,4 +1,4 @@
-name: genesis-reconcile
+name: tars-init
 
 on:
   push:
@@ -9,7 +9,7 @@ on:
       - 'SVCS.yaml'
       - 'TARS/**'
       - 'TARS/TARS.py'
-      - '.github/workflows/genesis-reconcile.yml'
+      - '.github/workflows/tars-init.yml'
   workflow_dispatch:
 
 permissions:
@@ -28,29 +28,29 @@ jobs:
         with:
           python-version: '3.12'
 
-      - name: Install dependencies
+      - name: TARS Init
         run: |
           python -m pip install --upgrade pip
           python -m pip install fastapi pydantic pyyaml jinja2 certifi
 
-      - name: Reconcile from config and open PR
-        id: genesis
+      - name: SVCS Check
+        id: svcs_check
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          python3 TARS/TARS.py genesis \
+          python3 TARS/TARS.py svcs-check \
             --repo-root . \
             --open-pr
 
       - name: Summary
         run: |
-          echo "Changes detected: ${{ steps.genesis.outputs.has_changes }}"
-          echo "Changed services: ${{ steps.genesis.outputs.changed_services }}"
-          echo "Removed services: ${{ steps.genesis.outputs.removed_services }}"
-          echo "Changed files: ${{ steps.genesis.outputs.changed_file_count }}"
-          echo "Deleted files: ${{ steps.genesis.outputs.delete_file_count }}"
-          if [ -n "${{ steps.genesis.outputs.pr_url }}" ]; then
-            echo "PR: ${{ steps.genesis.outputs.pr_url }}"
+          echo "Changes detected: ${{ steps.svcs_check.outputs.has_changes }}"
+          echo "Changed services: ${{ steps.svcs_check.outputs.changed_services }}"
+          echo "Removed services: ${{ steps.svcs_check.outputs.removed_services }}"
+          echo "Changed files: ${{ steps.svcs_check.outputs.changed_file_count }}"
+          echo "Deleted files: ${{ steps.svcs_check.outputs.delete_file_count }}"
+          if [ -n "${{ steps.svcs_check.outputs.pr_url }}" ]; then
+            echo "PR: ${{ steps.svcs_check.outputs.pr_url }}"
           else
             echo "No PR opened"
           fi
@@ -58,6 +58,6 @@ jobs:
       - name: Upload reconcile state
         uses: actions/upload-artifact@v4
         with:
-          name: genesis-state-${{ github.run_id }}
-          path: ${{ steps.genesis.outputs.state_file }}
+          name: tars-svcs-state-${{ github.run_id }}
+          path: ${{ steps.svcs_check.outputs.state_file }}
           if-no-files-found: error

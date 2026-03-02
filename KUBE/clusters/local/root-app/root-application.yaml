@@ -6,7 +6,7 @@ metadata:
 spec:
   project: default
   source:
-    repoURL: https://github.com/calavelas/genesis-platform.git
+    repoURL: https://github.com/calavelas/ENDR.git
     targetRevision: main
     path: KUBE/clusters/local/apps
     directory:

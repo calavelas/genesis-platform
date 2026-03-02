@@ -3,7 +3,7 @@
 Local-first GitOps Internal Developer Platform demo with:
 - GitHub as source of truth
 - ArgoCD app-of-apps deployment to local k3d
-- config-driven reconciliation (`ENDR.yaml` + `SVCS.yaml`) via `TARS/TARS.py genesis`
+- config-driven reconciliation (`ENDR.yaml` + `SVCS.yaml`) via `TARS/TARS.py svcs-check`
 
 ## Repository Layout
 
@@ -33,8 +33,8 @@ Local-first GitOps Internal Developer Platform demo with:
 ### Common commands
 - `make -f SCPT/Makefile bootstrap`
 - `make -f SCPT/Makefile validate-config`
-- `make -f SCPT/Makefile genesis`
-- `make -f SCPT/Makefile genesis-write`
+- `make -f SCPT/Makefile svcs-check`
+- `make -f SCPT/Makefile svcs-sync`
 - `make -f SCPT/Makefile smoke-test`
 - `make -f SCPT/Makefile api`
 - `make -f SCPT/Makefile web`
