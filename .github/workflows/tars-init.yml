@@ -27,6 +27,7 @@ permissions:
 
 jobs:
   TARS-Reconcile:
+    name: Services Reconcile
     if: ${{ github.event_name != 'push' || github.actor != 'github-actions[bot]' }}
     runs-on: ubuntu-latest
     steps:

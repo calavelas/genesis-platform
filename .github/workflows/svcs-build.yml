@@ -203,7 +203,7 @@ jobs:
             as_bullets_lines "$SKIPPED_SERVICES" "  "
           } >> "$GITHUB_STEP_SUMMARY"
 
-  Build-and-Push:
+  build-and-push:
     name: Build and Push (${{ matrix.service }})
     needs: services-change-discovery
     if: needs.services-change-discovery.result == 'success' && needs.services-change-discovery.outputs.has_services == 'true'
@@ -236,15 +236,16 @@ jobs:
           push: true
           tags: docker.io/${{ secrets.DOCKERHUB_USERNAME }}/${{ matrix.repo_name }}:${{ matrix.image_tag }}
 
-  Update-Tag:
+  update-image-tag:
+    name: Update Image Tag
     needs:
       - services-change-discovery
-      - Build-and-Push
+      - build-and-push
     if: >
       needs.services-change-discovery.result == 'success' &&
       needs.services-change-discovery.outputs.has_services == 'true' &&
       needs.services-change-discovery.outputs.services != '' &&
-      needs.Build-and-Push.result == 'success' &&
+      needs.build-and-push.result == 'success' &&
       (
         (github.event_name == 'push' && github.ref_name == 'main') ||
         (github.event_name == 'workflow_run' && github.event.workflow_run.head_branch == 'main')
