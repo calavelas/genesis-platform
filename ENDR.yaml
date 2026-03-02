@@ -1,0 +1,29 @@
+projectName: genesis-platform
+owners:
+  - calavelas
+
+config:
+  git:
+    provider: github
+    owner: calavelas
+    repo: genesis-platform
+    defaultBranch: main
+  cluster:
+    name: genesis-local
+    namespaceDefault: default
+    argocdNamespace: argocd
+  environments:
+    - local
+
+templates:
+  extends: []
+  service:
+    - name: python-fastapi
+      type: service
+      description: FastAPI service template
+      path: TARS/templates/service/python-fastapi
+  gitops:
+    - name: helm-service
+      type: gitops
+      description: Helm chart and ArgoCD app template
+      path: TARS/templates/gitops/helm-service

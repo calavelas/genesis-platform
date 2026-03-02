@@ -1,0 +1,15 @@
+README.md
+pyproject.toml
+app/__init__.py
+app/main.py
+app/config/__init__.py
+app/config/loader.py
+app/config/models.py
+app/scaffold/__init__.py
+app/scaffold/github_client.py
+app/scaffold/service.py
+endr_api.egg-info/PKG-INFO
+endr_api.egg-info/SOURCES.txt
+endr_api.egg-info/dependency_links.txt
+endr_api.egg-info/requires.txt
+endr_api.egg-info/top_level.txt

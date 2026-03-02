@@ -1,0 +1,39 @@
+Metadata-Version: 2.4
+Name: endr-api
+Version: 0.1.0
+Summary: GitOps IDP backend API
+Requires-Python: >=3.12
+Description-Content-Type: text/markdown
+Requires-Dist: fastapi>=0.116.0
+Requires-Dist: uvicorn[standard]>=0.35.0
+Requires-Dist: pydantic>=2.10.0
+Requires-Dist: pyyaml>=6.0.0
+Requires-Dist: jinja2>=3.1.0
+Requires-Dist: certifi>=2024.0.0
+
+# ENDR (FastAPI)
+
+This service will:
+- validate configs and template selections
+- scaffold service and GitOps assets
+- create branch + commit + PR in GitHub
+- expose deployment status endpoints
+
+Run locally:
+```bash
+uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+```
+
+Validate config files:
+```bash
+python3 -m app.config.loader
+```
+
+Current endpoints:
+- `GET /api/health`
+- `GET /api/config/validate`
+- `GET /api/config`
+- `POST /api/services` (supports `dryRun`)
+
+Required env for PR creation (`dryRun=false`):
+- `GITHUB_TOKEN`

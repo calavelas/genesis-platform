@@ -3,9 +3,9 @@ name: validate-services
 on:
   pull_request:
     paths:
-      - 'services/**'
-      - 'apps/idp-api/**'
-      - 'apps/idp-web/**'
+      - 'SVCS/**'
+      - 'ENDR/**'
+      - 'CASE/**'
       - '.github/workflows/validate-services.yml'
 
 jobs:

@@ -3,8 +3,8 @@ name: validate-platform
 on:
   pull_request:
     paths:
-      - 'platform/**'
-      - 'templates/**'
+      - 'KUBE/**'
+      - 'TARS/templates/**'
       - '.github/workflows/validate-platform.yml'
 
 jobs:

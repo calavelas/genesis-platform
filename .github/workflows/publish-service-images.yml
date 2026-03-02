@@ -5,9 +5,9 @@ on:
     branches:
       - main
     paths:
-      - 'services/**'
+      - 'SVCS/**'
       - '.github/workflows/publish-service-images.yml'
-      - 'scripts/ci/discover_changed_services.py'
+      - 'TARS/TARS.py'
   workflow_dispatch:
 
 permissions:
@@ -41,13 +41,13 @@ jobs:
         id: discover
         run: |
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            python3 scripts/ci/discover_changed_services.py \
+            python3 TARS/TARS.py discover-changed-services \
               --repo-root . \
               --all-services \
               --registry dockerhub \
               --image-owner "${{ secrets.DOCKERHUB_USERNAME }}"
           else
-            python3 scripts/ci/discover_changed_services.py \
+            python3 TARS/TARS.py discover-changed-services \
               --repo-root . \
               --before "${{ github.event.before }}" \
               --after "${{ github.sha }}" \

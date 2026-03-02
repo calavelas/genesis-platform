@@ -5,9 +5,10 @@ on:
     branches:
       - main
     paths:
-      - 'idp-config.yaml'
-      - 'services-config.yaml'
-      - 'scripts/ci/genesis.py'
+      - 'ENDR.yaml'
+      - 'SVCS.yaml'
+      - 'TARS/**'
+      - 'TARS/TARS.py'
       - '.github/workflows/genesis-reconcile.yml'
   workflow_dispatch:
 
@@ -37,7 +38,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          python3 scripts/ci/genesis.py \
+          python3 TARS/TARS.py genesis \
             --repo-root . \
             --open-pr
 
