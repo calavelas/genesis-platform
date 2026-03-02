@@ -71,27 +71,7 @@ jobs:
             CHANGED_FILES="$(git diff --name-only "$BEFORE" "$AFTER")"
           fi
 
-          SERVICES="$(printf "%s\n" "$CHANGED_FILES" | awk -F/ '
-            $1=="SVCS" && $2!="" && $2!="examples" {
-              svc=$2
-              if (
-                $3=="app" ||
-                $3=="src" ||
-                $3=="cmd" ||
-                $3=="internal" ||
-                $3=="pkg" ||
-                $3=="lib" ||
-                $3=="Dockerfile" ||
-                $3=="requirements.txt" ||
-                $3=="pyproject.toml" ||
-                $3=="package.json" ||
-                $3=="package-lock.json" ||
-                $3=="go.mod" ||
-                $3=="go.sum" ||
-                $3=="Cargo.toml" ||
-                $3=="Cargo.lock"
-              ) print svc
-            }' | sort -u | paste -sd, -)"
+          SERVICES="$(printf "%s\n" "$CHANGED_FILES" | awk -F/ '$1=="SVCS" && $2!="" && $2!="examples" && ($3=="app" || $3=="src" || $3=="cmd" || $3=="internal" || $3=="pkg" || $3=="lib" || $3=="Dockerfile" || $3=="requirements.txt" || $3=="pyproject.toml" || $3=="package.json" || $3=="package-lock.json" || $3=="go.mod" || $3=="go.sum" || $3=="Cargo.toml" || $3=="Cargo.lock") { print $2 }' | sort -u | paste -sd, -)"
 
           COUNT=0
           if [ -n "$SERVICES" ]; then
