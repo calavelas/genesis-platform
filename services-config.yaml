@@ -9,7 +9,7 @@ services:
     gitops:
       template: helm-service
   overrides:
-    image: ghcr.io/example/hello-service:0.1.0
+    image: calavelas/hello-service:0.1.0
     port: 8080
     env:
       LOG_LEVEL: info
