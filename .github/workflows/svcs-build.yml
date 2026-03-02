@@ -19,7 +19,7 @@ permissions:
   contents: write
 
 jobs:
-  discover:
+  Changes-Discovery:
     if: >
       (
         github.event_name == 'push' &&
@@ -151,24 +151,24 @@ jobs:
         run: |
           set -euo pipefail
 
-          as_numbered_csv() {
+          as_bullets_csv() {
             local csv="$1"
             local indent="${2:-}"
             if [ -z "$csv" ]; then
-              echo "${indent}- 1) none"
+              echo "${indent}- none"
               return
             fi
-            printf "%s\n" "$csv" | tr ',' '\n' | sed '/^$/d' | awk -v p="$indent" '{ printf "%s- %d) `%s`\n", p, NR, $0 }'
+            printf "%s\n" "$csv" | tr ',' '\n' | sed '/^$/d' | awk -v p="$indent" '{ printf "%s- `%s`\n", p, $0 }'
           }
 
-          as_numbered_lines() {
+          as_bullets_lines() {
             local lines="$1"
             local indent="${2:-}"
             if [ -z "$lines" ]; then
-              echo "${indent}- 1) none"
+              echo "${indent}- none"
               return
             fi
-            printf "%s\n" "$lines" | sed '/^$/d' | awk -v p="$indent" '{ printf "%s- %d) `%s`\n", p, NR, $0 }'
+            printf "%s\n" "$lines" | sed '/^$/d' | awk -v p="$indent" '{ printf "%s- `%s`\n", p, $0 }'
           }
 
           MATRIX_JSON='${{ steps.discover.outputs.matrix }}'
@@ -193,23 +193,23 @@ jobs:
             echo "| Has publishable services | \`${{ steps.discover.outputs.has_services || 'false' }}\` |"
             echo ""
             echo "#### Source service paths changed (${{ steps.detect_source_services.outputs.service_count || '0' }})"
-            as_numbered_csv "${{ steps.detect_source_services.outputs.services }}"
+            as_bullets_csv "${{ steps.detect_source_services.outputs.services }}"
             echo ""
             echo "#### Publish discovery"
             echo "- Selected for image publish (${{ steps.discover.outputs.count }})"
-            as_numbered_csv "$PUBLISH_SERVICES" "  "
+            as_bullets_csv "$PUBLISH_SERVICES" "  "
             echo "- Skipped services (with reason)"
-            as_numbered_lines "$SKIPPED_SERVICES" "  "
+            as_bullets_lines "$SKIPPED_SERVICES" "  "
           } >> "$GITHUB_STEP_SUMMARY"
 
-  publish:
-    name: Build and Publish (${{ matrix.service }})
-    needs: discover
-    if: needs.discover.result == 'success' && needs.discover.outputs.has_services == 'true'
+  Build-and-Push:
+    name: Build and Push (${{ matrix.service }})
+    needs: Changes-Discovery
+    if: needs.Changes-Discovery.result == 'success' && needs.Changes-Discovery.outputs.has_services == 'true'
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
-      matrix: ${{ fromJson(needs.discover.outputs.matrix || '{"include":[]}') }}
+      matrix: ${{ fromJson(needs.Changes-Discovery.outputs.matrix || '{"include":[]}') }}
     steps:
       - uses: actions/checkout@v4
 
@@ -235,15 +235,15 @@ jobs:
           push: true
           tags: docker.io/${{ secrets.DOCKERHUB_USERNAME }}/${{ matrix.repo_name }}:${{ matrix.image_tag }}
 
-  persist-tags:
+  Update-Tag:
     needs:
-      - discover
-      - publish
+      - Changes-Discovery
+      - Build-and-Push
     if: >
-      needs.discover.result == 'success' &&
-      needs.discover.outputs.has_services == 'true' &&
-      needs.discover.outputs.services != '' &&
-      needs.publish.result == 'success' &&
+      needs.Changes-Discovery.result == 'success' &&
+      needs.Changes-Discovery.outputs.has_services == 'true' &&
+      needs.Changes-Discovery.outputs.services != '' &&
+      needs.Build-and-Push.result == 'success' &&
       (
         (github.event_name == 'push' && github.ref_name == 'main') ||
         (github.event_name == 'workflow_run' && github.event.workflow_run.head_branch == 'main')
@@ -269,8 +269,8 @@ jobs:
           set -euo pipefail
           python3 TARS/TARS.py update-image-tags \
             --repo-root . \
-            --services "${{ needs.discover.outputs.services }}" \
-            --tag "${{ needs.discover.outputs.tag }}" \
+            --services "${{ needs.Changes-Discovery.outputs.services }}" \
+            --tag "${{ needs.Changes-Discovery.outputs.tag }}" \
             --allow-missing
           python3 TARS/TARS.py svcs-check \
             --repo-root . \
@@ -286,9 +286,9 @@ jobs:
             echo "No tag updates to commit."
             exit 0
           fi
-          git commit -m "TARS : Persist image tag ${{ needs.discover.outputs.tag }} for ${{ needs.discover.outputs.service_count }} service(s)"
+          git commit -m "TARS : Persist image tag ${{ needs.Changes-Discovery.outputs.tag }} for ${{ needs.Changes-Discovery.outputs.service_count }} service(s)"
           git push origin HEAD:${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_branch || github.ref_name }}
 
       - name: Summary
         run: |
-          echo "::notice title=SVCS Tag Persisted::tag=${{ needs.discover.outputs.tag }}, services=${{ needs.discover.outputs.services }}"
+          echo "::notice title=SVCS Tag Persisted::tag=${{ needs.Changes-Discovery.outputs.tag }}, services=${{ needs.Changes-Discovery.outputs.services }}"

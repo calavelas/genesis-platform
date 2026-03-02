@@ -115,14 +115,14 @@ jobs:
         run: |
           set -euo pipefail
 
-          as_numbered() {
+          as_bullets() {
             local csv="$1"
             local indent="${2:-}"
             if [ -z "$csv" ]; then
-              echo "${indent}- 1) none"
+              echo "${indent}- none"
               return
             fi
-            printf "%s\n" "$csv" | tr ',' '\n' | sed '/^$/d' | awk -v p="$indent" '{ printf "%s- %d) `%s`\n", p, NR, $0 }'
+            printf "%s\n" "$csv" | tr ',' '\n' | sed '/^$/d' | awk -v p="$indent" '{ printf "%s- `%s`\n", p, $0 }'
           }
 
           BEFORE_SHA="${{ steps.detect_source_services.outputs.before_sha }}"
@@ -154,21 +154,21 @@ jobs:
             echo "| Auto tag value | \`${{ steps.tag_services.outputs.tag || 'none' }}\` |"
             echo ""
             echo "#### Source service paths changed (${{ steps.detect_source_services.outputs.service_count || '0' }})"
-            as_numbered "${{ steps.detect_source_services.outputs.services }}"
+            as_bullets "${{ steps.detect_source_services.outputs.services }}"
             echo ""
             echo "#### Reconcile service changes (${{ steps.svcs_check.outputs.changed_service_count }})"
             echo "- Added (${{ steps.svcs_check.outputs.added_service_count }})"
-            as_numbered "${{ steps.svcs_check.outputs.added_services }}" "  "
+            as_bullets "${{ steps.svcs_check.outputs.added_services }}" "  "
             echo "- Updated (${{ steps.svcs_check.outputs.updated_service_count }})"
-            as_numbered "${{ steps.svcs_check.outputs.updated_services }}" "  "
+            as_bullets "${{ steps.svcs_check.outputs.updated_services }}" "  "
             echo "- Removed (${{ steps.svcs_check.outputs.removed_service_count }})"
-            as_numbered "${{ steps.svcs_check.outputs.removed_services }}" "  "
+            as_bullets "${{ steps.svcs_check.outputs.removed_services }}" "  "
             echo ""
             echo "#### Reconcile file changes (${{ steps.svcs_check.outputs.changed_file_count }})"
             echo "- Upsert files (${{ steps.svcs_check.outputs.upsert_file_count }})"
-            as_numbered "${{ steps.svcs_check.outputs.upsert_files }}" "  "
+            as_bullets "${{ steps.svcs_check.outputs.upsert_files }}" "  "
             echo "- Deleted files (${{ steps.svcs_check.outputs.delete_file_count }})"
-            as_numbered "${{ steps.svcs_check.outputs.deleted_files }}" "  "
+            as_bullets "${{ steps.svcs_check.outputs.deleted_files }}" "  "
           } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Commit generated updates to PR branch
