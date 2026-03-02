@@ -1,5 +1,5 @@
 services:
-- name: hello-service
+- name: demo
   namespace: demo
   deployTo:
   - local
@@ -9,7 +9,7 @@ services:
     gitops:
       template: helm-service
   overrides:
-    image: calavelas/hello-service:0.1.0
+    image: calavelas/demo:0.0.1
     port: 8080
     env:
       LOG_LEVEL: info
@@ -21,5 +21,5 @@ services:
         cpu: 250m
         memory: 256Mi
     ingress:
-      enabled: false
+      enabled: true
       host: hello.local
