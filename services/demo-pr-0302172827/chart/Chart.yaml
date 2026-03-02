@@ -1,0 +1,5 @@
+apiVersion: v2
+name: demo-pr-0302172827
+version: 0.1.0
+appVersion: "0.1.0"
+type: application
