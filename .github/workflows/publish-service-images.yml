@@ -65,11 +65,11 @@ jobs:
 
   publish:
     needs: discover
-    if: needs.discover.outputs.has_services == 'true'
+    if: needs.discover.result == 'success' && needs.discover.outputs.has_services == 'true'
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
-      matrix: ${{ fromJson(needs.discover.outputs.matrix) }}
+      matrix: ${{ fromJson(needs.discover.outputs.matrix || '{"include":[]}') }}
     steps:
       - uses: actions/checkout@v4
 
