@@ -13,3 +13,17 @@ Primary module:
 Notes:
 - runtime configuration and service catalog are loaded from shared config modules in `TARS.config`.
 - `TARS/api/main.py` includes the PLEX router into the shared backend app.
+
+## ArgoCD Integration
+`build_plex_universe()` supports two data modes:
+- `argocd`: pulls live app status from ArgoCD API.
+- `config`: fallback snapshot derived from `ENDR.yaml` and `SVCS.yaml`.
+
+Environment variables:
+- `PLEX_ARGOCD_SERVER`: ArgoCD base URL, for example `https://argocd.example.com`
+- `PLEX_ARGOCD_TOKEN`: ArgoCD API token used by backend
+- `PLEX_ARGOCD_VERIFY_TLS`: `true` (default) or `false` for self-signed/local TLS
+
+Security model:
+- CASE frontend only calls `/api/plex/universe`.
+- ArgoCD credentials stay backend-only and are never sent to the browser.

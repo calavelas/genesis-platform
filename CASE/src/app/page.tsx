@@ -1,6 +1,8 @@
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
+import { ArgoEmbedPanel } from "./components/argo-embed-panel";
+
 type NodeKind = "core" | "service";
 type NodeTone = "good" | "warn" | "bad" | "neutral";
 
@@ -29,6 +31,7 @@ interface PlexUniverse {
 }
 
 const FALLBACK_API = "http://127.0.0.1:8000";
+const FALLBACK_EMBED_URL = "https://127.0.0.1:18443/applications";
 
 function normalizeApiBase(base: string): string {
   return base.endsWith("/") ? base.slice(0, -1) : base;
@@ -37,6 +40,83 @@ function normalizeApiBase(base: string): string {
 function resolveApiBase(): string {
   const base = process.env.ENDR_API_URL || process.env.NEXT_PUBLIC_ENDR_API_URL || FALLBACK_API;
   return normalizeApiBase(base);
+}
+
+function resolveArgoEmbedUrl(): string {
+  const value = process.env.CASE_ARGOCD_EMBED_URL || process.env.NEXT_PUBLIC_ARGOCD_EMBED_URL || FALLBACK_EMBED_URL;
+  return value.trim() || FALLBACK_EMBED_URL;
+}
+
+function normalize(value: string): string {
+  return value.trim().toLowerCase();
+}
+
+function syncTone(status: string): NodeTone {
+  const value = normalize(status);
+  if (value === "synced") {
+    return "good";
+  }
+  if (value === "outofsync" || value === "missing") {
+    return "bad";
+  }
+  if (value === "progressing" || value === "unknown") {
+    return "warn";
+  }
+  return "neutral";
+}
+
+function healthTone(status: string): NodeTone {
+  const value = normalize(status);
+  if (value === "healthy") {
+    return "good";
+  }
+  if (value === "degraded" || value === "suspended" || value === "missing") {
+    return "bad";
+  }
+  if (value === "progressing" || value === "unknown") {
+    return "warn";
+  }
+  return "neutral";
+}
+
+function dataSourceTone(source: string): NodeTone {
+  const value = normalize(source);
+  if (value === "argocd") {
+    return "good";
+  }
+  if (value === "config") {
+    return "warn";
+  }
+  if (value === "fallback") {
+    return "bad";
+  }
+  return "neutral";
+}
+
+function formatTimestamp(value: string): string {
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) {
+    return value;
+  }
+  return parsed.toLocaleString();
+}
+
+function optionalTimestamp(value: string | null): string {
+  if (!value) {
+    return "n/a";
+  }
+  return formatTimestamp(value);
+}
+
+function shortRevision(revision: string): string {
+  const value = revision.trim();
+  if (!value) {
+    return "n/a";
+  }
+  if (/^[a-f0-9]{12,}$/i.test(value)) {
+    return value.slice(0, 12);
+  }
+  return value;
 }
 
 function buildFallbackUniverse(reason: string): PlexUniverse {
@@ -85,242 +165,163 @@ async function loadUniverse(): Promise<{ universe: PlexUniverse; endpoint: strin
   }
 }
 
-function normalize(value: string): string {
-  return value.trim().toLowerCase();
-}
-
-function syncTone(status: string): NodeTone {
-  const value = normalize(status);
-  if (value === "synced") {
-    return "good";
-  }
-  if (value === "outofsync" || value === "missing") {
-    return "bad";
-  }
-  if (value === "unknown" || value === "progressing") {
-    return "warn";
-  }
-  return "neutral";
-}
-
-function healthTone(status: string): NodeTone {
-  const value = normalize(status);
-  if (value === "healthy") {
-    return "good";
-  }
-  if (value === "degraded" || value === "suspended" || value === "missing") {
-    return "bad";
-  }
-  if (value === "unknown" || value === "progressing") {
-    return "warn";
-  }
-  return "neutral";
-}
-
-function formatTimestamp(value: string): string {
-  const parsed = new Date(value);
-  if (Number.isNaN(parsed.getTime())) {
-    return value;
-  }
-  return parsed.toLocaleString();
-}
-
-function formatOptionalTimestamp(value: string | null): string {
-  if (!value) {
-    return "n/a";
-  }
-  return formatTimestamp(value);
-}
-
-function shortRevision(value: string): string {
-  const revision = value.trim();
-  if (!revision) {
-    return "n/a";
-  }
-  if (/^[a-f0-9]{12,}$/i.test(revision)) {
-    return revision.slice(0, 12);
-  }
-  return revision;
-}
-
-function sortNodes(nodes: PlexNode[]): PlexNode[] {
+function sortByName(nodes: PlexNode[]): PlexNode[] {
   return [...nodes].sort((left, right) => left.name.localeCompare(right.name));
 }
 
-function statusCount(nodes: PlexNode[], key: "syncStatus" | "healthStatus", match: string): number {
-  const lookup = match.toLowerCase();
-  return nodes.filter((node) => normalize(node[key]) === lookup).length;
-}
-
-function isProblem(node: PlexNode): boolean {
-  const sync = normalize(node.syncStatus);
-  const health = normalize(node.healthStatus);
-  return sync === "outofsync" || sync === "missing" || health === "degraded" || health === "missing";
+function hasAttention(node: PlexNode): boolean {
+  return syncTone(node.syncStatus) === "bad" || healthTone(node.healthStatus) === "bad";
 }
 
 export default async function HomePage() {
   const { universe, endpoint } = await loadUniverse();
-  const coreApps = sortNodes(universe.coreApps);
-  const serviceApps = sortNodes(universe.services);
-  const allApps = [...coreApps, ...serviceApps];
+  const embedUrl = resolveArgoEmbedUrl();
 
-  const appCount = allApps.length;
-  const syncedCount = statusCount(allApps, "syncStatus", "synced");
-  const healthyCount = statusCount(allApps, "healthStatus", "healthy");
-  const problemCount = allApps.filter(isProblem).length;
+  const coreApps = sortByName(universe.coreApps);
+  const serviceApps = sortByName(universe.services);
+  const deploymentApps = sortByName([...coreApps, ...serviceApps]);
+
+  const totalServices = serviceApps.length;
+  const healthyServices = serviceApps.filter((service) => healthTone(service.healthStatus) === "good").length;
+  const syncedDeployments = deploymentApps.filter((app) => syncTone(app.syncStatus) === "good").length;
+  const attentionCount = deploymentApps.filter(hasAttention).length;
 
   return (
-    <main className="portal-page">
-      <header className="portal-header">
-        <div>
-          <p className="portal-label">CASE</p>
-          <h1>Applications</h1>
-          <p className="portal-subtitle">ArgoCD-style read-only portal for ENDR</p>
+    <main className="portal-shell">
+      <header className="portal-topbar">
+        <div className="topbar-brand">
+          <span className="brand-dot" />
+          <strong>CASE</strong>
+          <span>Platform View</span>
         </div>
-        <div className="header-meta">
-          <span className="source-chip">{universe.dataSource}</span>
-          <span>Updated {formatTimestamp(universe.generatedAt)}</span>
-          <span className="endpoint-text">{endpoint}</span>
+
+        <div className="topbar-status">
+          <span className={`chip tone-${dataSourceTone(universe.dataSource)}`}>{universe.dataSource}</span>
+          <span className="chip muted">Updated {formatTimestamp(universe.generatedAt)}</span>
         </div>
       </header>
 
-      <section className="summary-grid">
-        <article className="summary-card">
-          <h2>Total Apps</h2>
-          <p>{appCount}</p>
-          <small>{coreApps.length} core, {serviceApps.length} services</small>
-        </article>
-        <article className="summary-card">
-          <h2>Synced</h2>
-          <p>{syncedCount}</p>
-          <small>{appCount - syncedCount} not synced</small>
-        </article>
-        <article className="summary-card">
-          <h2>Healthy</h2>
-          <p>{healthyCount}</p>
-          <small>{appCount - healthyCount} not healthy</small>
-        </article>
-        <article className="summary-card">
-          <h2>Warnings</h2>
-          <p>{Math.max(problemCount, universe.warnings.length)}</p>
-          <small>Operational signals</small>
-        </article>
-      </section>
+      <div className="portal-layout">
+        <aside className="portal-sidebar">
+          <section className="sidebar-block">
+            <h2>Navigation</h2>
+            <ul>
+              <li className="active">Dashboard</li>
+              <li>Services</li>
+              <li>Deployments</li>
+              <li>ArgoCD Embed</li>
+            </ul>
+          </section>
 
-      {universe.warnings.length > 0 && (
-        <section className="warning-panel" aria-live="polite">
-          <h2>Telemetry Warnings</h2>
-          <ul>
-            {universe.warnings.map((warning) => (
-              <li key={warning}>{warning}</li>
-            ))}
-          </ul>
+          <section className="sidebar-block">
+            <h2>Overview</h2>
+            <dl>
+              <div>
+                <dt>Services</dt>
+                <dd>{totalServices}</dd>
+              </div>
+              <div>
+                <dt>Healthy</dt>
+                <dd>{healthyServices}</dd>
+              </div>
+              <div>
+                <dt>Synced</dt>
+                <dd>{syncedDeployments}</dd>
+              </div>
+              <div>
+                <dt>Attention</dt>
+                <dd>{attentionCount}</dd>
+              </div>
+            </dl>
+          </section>
+        </aside>
+
+        <section className="portal-main">
+          <section className="hero-row">
+            <div>
+              <p className="eyebrow">Read-only Operations</p>
+              <h1>Service and Deployment Health</h1>
+              <p className="hero-subtitle">Dark mode dashboard with live ArgoCD embed for operational tracking.</p>
+            </div>
+            <a className="open-link" href={embedUrl} target="_blank" rel="noreferrer">
+              Open ArgoCD
+            </a>
+          </section>
+
+          <section className="metric-row" aria-label="health-overview">
+            <article className="metric-card">
+              <span>Services</span>
+              <strong>{totalServices}</strong>
+            </article>
+            <article className="metric-card">
+              <span>Healthy</span>
+              <strong>{healthyServices}</strong>
+            </article>
+            <article className="metric-card">
+              <span>Synced</span>
+              <strong>{syncedDeployments}</strong>
+            </article>
+            <article className="metric-card">
+              <span>Needs Attention</span>
+              <strong className={attentionCount > 0 ? "tone-bad" : "tone-good"}>{attentionCount}</strong>
+            </article>
+          </section>
+
+          {universe.warnings.length > 0 && (
+            <section className="warning-box" aria-live="polite">
+              <h2>Warnings</h2>
+              <ul>
+                {universe.warnings.map((warning) => (
+                  <li key={warning}>{warning}</li>
+                ))}
+              </ul>
+            </section>
+          )}
+
+          <ArgoEmbedPanel embedUrl={embedUrl} />
+
+          <section className="list-grid">
+            <article className="panel">
+              <h2>Service Health</h2>
+              <ul className="status-list">
+                {serviceApps.map((service) => (
+                  <li key={`service-${service.name}`}>
+                    <div>
+                      <strong>{service.name}</strong>
+                      <small>{service.namespace}</small>
+                    </div>
+                    <div className="status-meta">
+                      <span className={`status-pill tone-${healthTone(service.healthStatus)}`}>{service.healthStatus}</span>
+                      <code>{service.imageTag ?? "n/a"}</code>
+                    </div>
+                  </li>
+                ))}
+
+                {serviceApps.length === 0 && <li className="empty">No services found.</li>}
+              </ul>
+            </article>
+
+            <article className="panel">
+              <h2>Deployment Health</h2>
+              <ul className="status-list">
+                {deploymentApps.map((app) => (
+                  <li key={`deploy-${app.kind}-${app.name}`}>
+                    <div>
+                      <strong>{app.name}</strong>
+                      <small>{app.kind}</small>
+                    </div>
+                    <div className="status-meta">
+                      <span className={`status-pill tone-${syncTone(app.syncStatus)}`}>{app.syncStatus}</span>
+                      <code>{shortRevision(app.revision)}</code>
+                      <small>{optionalTimestamp(app.deployedAt)}</small>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            </article>
+          </section>
         </section>
-      )}
-
-      <section className="panel">
-        <div className="panel-header">
-          <h2>Core Applications</h2>
-          <p>{universe.clusterPath}</p>
-        </div>
-        <div className="table-wrap">
-          <table className="apps-table">
-            <thead>
-              <tr>
-                <th>Name</th>
-                <th>Namespace</th>
-                <th>Sync</th>
-                <th>Health</th>
-                <th>Revision</th>
-                <th>Deployed</th>
-                <th>Source</th>
-              </tr>
-            </thead>
-            <tbody>
-              {coreApps.map((node) => (
-                <tr key={`core-${node.name}`}>
-                  <td>
-                    <div className="app-name">{node.name}</div>
-                    <div className="app-kind">core app</div>
-                  </td>
-                  <td className="mono">{node.namespace}</td>
-                  <td>
-                    <span className={`status-pill tone-${syncTone(node.syncStatus)}`}>{node.syncStatus}</span>
-                  </td>
-                  <td>
-                    <span className={`status-pill tone-${healthTone(node.healthStatus)}`}>{node.healthStatus}</span>
-                  </td>
-                  <td className="mono">{shortRevision(node.revision)}</td>
-                  <td>{formatOptionalTimestamp(node.deployedAt)}</td>
-                  <td className="source-path">{node.sourcePath}</td>
-                </tr>
-              ))}
-              {coreApps.length === 0 && (
-                <tr>
-                  <td className="empty-row" colSpan={7}>
-                    No core applications found.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-      </section>
-
-      <section className="panel">
-        <div className="panel-header">
-          <h2>Service Applications</h2>
-          <p>{universe.servicesPath}</p>
-        </div>
-        <div className="table-wrap">
-          <table className="apps-table">
-            <thead>
-              <tr>
-                <th>Name</th>
-                <th>Namespace</th>
-                <th>Sync</th>
-                <th>Health</th>
-                <th>Revision</th>
-                <th>Deployed</th>
-                <th>Source</th>
-              </tr>
-            </thead>
-            <tbody>
-              {serviceApps.map((node) => (
-                <tr key={`service-${node.name}`}>
-                  <td>
-                    <div className="app-name">{node.name}</div>
-                    <div className="app-kind">{node.imageTag ? `tag: ${node.imageTag}` : "service app"}</div>
-                  </td>
-                  <td className="mono">{node.namespace}</td>
-                  <td>
-                    <span className={`status-pill tone-${syncTone(node.syncStatus)}`}>{node.syncStatus}</span>
-                  </td>
-                  <td>
-                    <span className={`status-pill tone-${healthTone(node.healthStatus)}`}>{node.healthStatus}</span>
-                  </td>
-                  <td className="mono">{shortRevision(node.revision)}</td>
-                  <td>{formatOptionalTimestamp(node.deployedAt)}</td>
-                  <td className="source-path">{node.sourcePath}</td>
-                </tr>
-              ))}
-              {serviceApps.length === 0 && (
-                <tr>
-                  <td className="empty-row" colSpan={7}>
-                    No service applications found. Add services in `SVCS.yaml` and run reconcile.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-      </section>
-
-      <footer className="portal-footer">
-        <span>Galaxy: {universe.galaxyName}</span>
-        <span>Cluster path: {universe.clusterPath}</span>
-        <span>Services path: {universe.servicesPath}</span>
-      </footer>
+      </div>
     </main>
   );
 }

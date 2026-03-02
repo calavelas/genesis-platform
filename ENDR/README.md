@@ -13,6 +13,11 @@ Run locally:
 uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
+Run from repo root:
+```bash
+python -m uvicorn app.main:app --reload --host 0.0.0.0 --port 8000 --app-dir ENDR
+```
+
 Validate config files:
 ```bash
 python3 -m app.config.loader
@@ -24,6 +29,11 @@ Current endpoints:
 - `GET /api/config`
 - `GET /api/plex/universe` (powered by `PLEX` domain module)
 - `POST /api/services` (supports `dryRun`)
+
+Optional env for live ArgoCD-backed portal data:
+- `PLEX_ARGOCD_SERVER`
+- `PLEX_ARGOCD_TOKEN`
+- `PLEX_ARGOCD_VERIFY_TLS` (`true` by default)
 
 Required env for PR creation (`dryRun=false`):
 - `GITHUB_TOKEN`
