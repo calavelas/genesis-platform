@@ -1,5 +1,5 @@
 services:
-- name: demo
+- name: endr-svc-demo
   namespace: demo
   deployTo:
   - local
@@ -9,7 +9,7 @@ services:
     gitops:
       template: helm-service
   overrides:
-    image: calavelas/demo:0.0.1
+    image: calavelas/endr-svc-demo:0.0.1
     port: 8080
     env:
       LOG_LEVEL: info
@@ -22,4 +22,4 @@ services:
         memory: 256Mi
     ingress:
       enabled: true
-      host: hello.local
+      host: endr-svc-demo.local
