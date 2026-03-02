@@ -9,7 +9,7 @@ services:
     gitops:
       template: helm-service
   overrides:
-    image: calavelas/miller:git-2de2dec
+    image: calavelas/miller:git-786d5f9
 - name: mann
   namespace: demo
   deployTo:
