@@ -23,19 +23,3 @@ services:
     ingress:
       enabled: false
       host: hello.local
-- name: demo-pr-0302172827
-  namespace: demo
-  deployTo:
-  - local
-  generator:
-    service:
-      template: python-fastapi
-    gitops:
-      template: helm-service
-  overrides:
-    port: 8080
-    env: {}
-    ingress:
-      enabled: true
-      host: demo-pr-0302172827.local
-    image: ghcr.io/calavelas/demo-pr-0302172827:0.1.0
