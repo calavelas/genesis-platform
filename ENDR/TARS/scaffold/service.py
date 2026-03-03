@@ -456,7 +456,7 @@ def create_service(request: CreateServiceRequest) -> CreateServiceResponse:
             )
 
         pr = github_client.create_pull_request(
-            title=f"CASE : Adding service : {service.name}",
+            title=f"CASE - Adding service : {service.name}",
             body=(
                 f"Registered by IDP API.\n\n"
                 f"- service: `{service.name}`\n"

@@ -137,7 +137,7 @@ jobs:
         )
       ) &&
       startsWith(github.event.pull_request.head.ref, 'case/') &&
-      startsWith(github.event.pull_request.title, 'CASE : Adding service :') &&
+      startsWith(github.event.pull_request.title, 'CASE - Adding service :') &&
       contains(github.event.pull_request.body || '', 'Registered by IDP API.')
     runs-on: ubuntu-latest
     steps:
