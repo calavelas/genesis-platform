@@ -92,7 +92,18 @@ jobs:
       - name: Reconcile summary
         run: |
           set -euo pipefail
-          echo "::notice title=TARS Reconcile (check)::changes=${{ steps.svcs_check.outputs.has_changes || 'unknown' }}, services=${{ steps.svcs_check.outputs.changed_service_count || '0' }}, files=${{ steps.svcs_check.outputs.changed_file_count || '0' }}"
+
+          as_bullets_csv() {
+            local csv="$1"
+            local indent="${2:-}"
+            if [ -z "$csv" ]; then
+              echo "${indent}- none"
+              return
+            fi
+            printf "%s\n" "$csv" | tr ',' '\n' | sed '/^$/d' | awk -v p="$indent" '{ printf "%s- `%s`\n", p, $0 }'
+          }
+
+          echo "::notice title=TARS Reconcile (check)::changes=${{ steps.svcs_check.outputs.has_changes || 'unknown' }}, services=${{ steps.svcs_check.outputs.changed_service_count || '0' }} (A:${{ steps.svcs_check.outputs.added_service_count || '0' }},U:${{ steps.svcs_check.outputs.updated_service_count || '0' }},R:${{ steps.svcs_check.outputs.removed_service_count || '0' }}), files=${{ steps.svcs_check.outputs.changed_file_count || '0' }} (upsert:${{ steps.svcs_check.outputs.upsert_file_count || '0' }},delete:${{ steps.svcs_check.outputs.delete_file_count || '0' }})"
           {
             echo "### TARS Reconcile Summary"
             echo ""
@@ -102,6 +113,20 @@ jobs:
             echo "| Changes detected | \`${{ steps.svcs_check.outputs.has_changes || 'unknown' }}\` |"
             echo "| Changed services | \`${{ steps.svcs_check.outputs.changed_service_count || '0' }}\` |"
             echo "| Changed files | \`${{ steps.svcs_check.outputs.changed_file_count || '0' }}\` |"
+            echo ""
+            echo "#### Reconcile service changes (${{ steps.svcs_check.outputs.changed_service_count || '0' }})"
+            echo "- Added (${{ steps.svcs_check.outputs.added_service_count || '0' }})"
+            as_bullets_csv "${{ steps.svcs_check.outputs.added_services }}" "  "
+            echo "- Updated (${{ steps.svcs_check.outputs.updated_service_count || '0' }})"
+            as_bullets_csv "${{ steps.svcs_check.outputs.updated_services }}" "  "
+            echo "- Removed (${{ steps.svcs_check.outputs.removed_service_count || '0' }})"
+            as_bullets_csv "${{ steps.svcs_check.outputs.removed_services }}" "  "
+            echo ""
+            echo "#### Reconcile file changes (${{ steps.svcs_check.outputs.changed_file_count || '0' }})"
+            echo "- Upsert files (${{ steps.svcs_check.outputs.upsert_file_count || '0' }})"
+            as_bullets_csv "${{ steps.svcs_check.outputs.upsert_files }}" "  "
+            echo "- Deleted files (${{ steps.svcs_check.outputs.delete_file_count || '0' }})"
+            as_bullets_csv "${{ steps.svcs_check.outputs.deleted_files }}" "  "
           } >> "$GITHUB_STEP_SUMMARY"
 
   update:
@@ -209,7 +234,18 @@ jobs:
       - name: Update summary
         run: |
           set -euo pipefail
-          echo "::notice title=TARS Update::changes_to_push=${{ steps.patch.outputs.has_changes || 'false' }}, services=${{ steps.svcs_check.outputs.changed_service_count || '0' }}, files=${{ steps.svcs_check.outputs.changed_file_count || '0' }}"
+
+          as_bullets_csv() {
+            local csv="$1"
+            local indent="${2:-}"
+            if [ -z "$csv" ]; then
+              echo "${indent}- none"
+              return
+            fi
+            printf "%s\n" "$csv" | tr ',' '\n' | sed '/^$/d' | awk -v p="$indent" '{ printf "%s- `%s`\n", p, $0 }'
+          }
+
+          echo "::notice title=TARS Update::changes_to_push=${{ steps.patch.outputs.has_changes || 'false' }}, services=${{ steps.svcs_check.outputs.changed_service_count || '0' }} (A:${{ steps.svcs_check.outputs.added_service_count || '0' }},U:${{ steps.svcs_check.outputs.updated_service_count || '0' }},R:${{ steps.svcs_check.outputs.removed_service_count || '0' }}), files=${{ steps.svcs_check.outputs.changed_file_count || '0' }} (upsert:${{ steps.svcs_check.outputs.upsert_file_count || '0' }},delete:${{ steps.svcs_check.outputs.delete_file_count || '0' }})"
           {
             echo "### TARS Update Summary"
             echo ""
@@ -220,6 +256,20 @@ jobs:
             echo "| Changes to push | \`${{ steps.patch.outputs.has_changes || 'false' }}\` |"
             echo "| Changed services | \`${{ steps.svcs_check.outputs.changed_service_count || '0' }}\` |"
             echo "| Changed files | \`${{ steps.svcs_check.outputs.changed_file_count || '0' }}\` |"
+            echo ""
+            echo "#### Reconcile service changes (${{ steps.svcs_check.outputs.changed_service_count || '0' }})"
+            echo "- Added (${{ steps.svcs_check.outputs.added_service_count || '0' }})"
+            as_bullets_csv "${{ steps.svcs_check.outputs.added_services }}" "  "
+            echo "- Updated (${{ steps.svcs_check.outputs.updated_service_count || '0' }})"
+            as_bullets_csv "${{ steps.svcs_check.outputs.updated_services }}" "  "
+            echo "- Removed (${{ steps.svcs_check.outputs.removed_service_count || '0' }})"
+            as_bullets_csv "${{ steps.svcs_check.outputs.removed_services }}" "  "
+            echo ""
+            echo "#### Reconcile file changes (${{ steps.svcs_check.outputs.changed_file_count || '0' }})"
+            echo "- Upsert files (${{ steps.svcs_check.outputs.upsert_file_count || '0' }})"
+            as_bullets_csv "${{ steps.svcs_check.outputs.upsert_files }}" "  "
+            echo "- Deleted files (${{ steps.svcs_check.outputs.delete_file_count || '0' }})"
+            as_bullets_csv "${{ steps.svcs_check.outputs.deleted_files }}" "  "
           } >> "$GITHUB_STEP_SUMMARY"
 
   push:
