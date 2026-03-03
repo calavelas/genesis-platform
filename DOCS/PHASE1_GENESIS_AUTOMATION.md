@@ -13,7 +13,7 @@ When `ENDR.yaml` or `SVCS.yaml` changes:
 
 ## Script
 
-- Path: `TARS/TARS.py` (subcommand: `svcs-check`)
+- Path: `ENDR/TARS/TARS.py` (subcommand: `svcs-check`)
 - State output: `.idp/runtime/tars-svcs-state.yaml`
 
 State file format (Genesis-style):
@@ -41,7 +41,7 @@ Then it compares expected content with repo files:
 If file is missing or content differs, it is marked for reconcile and included in PR changes.
 
 Service removal handling:
-- If a service exists in repo-managed paths but is removed from `SVCS.yaml`, `TARS/TARS.py svcs-check` marks it as removed and stages file deletions.
+- If a service exists in repo-managed paths but is removed from `SVCS.yaml`, `ENDR/TARS/TARS.py svcs-check` marks it as removed and stages file deletions.
 - Deletions include:
   - `KUBE/clusters/mac/lab/services/<service>.yaml`
   - `SVCS/<service>/**`
@@ -59,7 +59,7 @@ Trigger:
 
 Behavior:
 - Detects changed service source paths in the PR and auto-updates `SVCS.yaml` image tags to immutable `git-<sha>` tags.
-- Runs `TARS/TARS.py svcs-check --write-worktree`
+- Runs `ENDR/TARS/TARS.py svcs-check --write-worktree`
 - If drift exists, commits generated changes back to the same PR branch.
 - PR merge is then a single source-of-truth merge (no second reconcile PR).
 - Emits GitHub job annotations and job summary with added/updated/removed service details.
@@ -71,25 +71,25 @@ Prerequisite: backend venv available at `ENDR/.venv`.
 Validate config:
 
 ```bash
-make -f SCPT/Makefile validate-config
+make -f ENDR/SCPT/Makefile validate-config
 ```
 
 Dry-run reconcile (no writes, no PR):
 
 ```bash
-make -f SCPT/Makefile svcs-check
+make -f ENDR/SCPT/Makefile svcs-check
 ```
 
 Write generated files to local worktree (still no PR):
 
 ```bash
-make -f SCPT/Makefile svcs-sync
+make -f ENDR/SCPT/Makefile svcs-sync
 ```
 
 Open PR manually from local machine (optional):
 
 ```bash
-GITHUB_TOKEN=<your_token> ENDR/.venv/bin/python TARS/TARS.py svcs-check --repo-root . --open-pr
+GITHUB_TOKEN=<your_token> ENDR/.venv/bin/python ENDR/TARS/TARS.py svcs-check --repo-root . --open-pr
 ```
 
 ## Portfolio framing

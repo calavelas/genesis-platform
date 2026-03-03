@@ -2,22 +2,22 @@
 
 CLUSTER_NAME ?= mac-lab
 MAKEFILE_DIR := $(patsubst %/,%,$(dir $(abspath $(lastword $(MAKEFILE_LIST)))))
-REPO_ROOT := $(abspath $(MAKEFILE_DIR)/..)
+REPO_ROOT := $(abspath $(MAKEFILE_DIR)/../..)
 
 bootstrap:
 	CLUSTER_NAME=$(CLUSTER_NAME) bash $(MAKEFILE_DIR)/bootstrap.sh
 
 up:
 	@echo "Starting local dev processes..."
-	@echo "Run stack: make -f SCPT/Makefile dev-start"
-	@echo "Stop stack: make -f SCPT/Makefile dev-stop"
-	@echo "Status: make -f SCPT/Makefile dev-status"
+	@echo "Run stack: make -f ENDR/SCPT/Makefile dev-start"
+	@echo "Stop stack: make -f ENDR/SCPT/Makefile dev-stop"
+	@echo "Status: make -f ENDR/SCPT/Makefile dev-status"
 
 api:
 	cd $(REPO_ROOT)/ENDR && uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 
 web:
-	cd $(REPO_ROOT)/CASE && npm run dev
+	cd $(REPO_ROOT)/ENDR/CASE && npm run dev
 
 dev-start:
 	bash $(MAKEFILE_DIR)/dev-stack.sh start
@@ -63,8 +63,8 @@ smoke-test-platform:
 
 svcs-check:
 	@echo "Running SVCS check (dry-run, no PR)..."
-	$(REPO_ROOT)/ENDR/.venv/bin/python $(REPO_ROOT)/TARS/TARS.py svcs-check --repo-root $(REPO_ROOT)
+	$(REPO_ROOT)/ENDR/.venv/bin/python $(REPO_ROOT)/ENDR/TARS/TARS.py svcs-check --repo-root $(REPO_ROOT)
 
 svcs-sync:
 	@echo "Running SVCS check and writing generated files to working tree..."
-	$(REPO_ROOT)/ENDR/.venv/bin/python $(REPO_ROOT)/TARS/TARS.py svcs-check --repo-root $(REPO_ROOT) --write-worktree
+	$(REPO_ROOT)/ENDR/.venv/bin/python $(REPO_ROOT)/ENDR/TARS/TARS.py svcs-check --repo-root $(REPO_ROOT) --write-worktree

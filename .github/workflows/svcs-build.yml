@@ -7,7 +7,7 @@ on:
     paths:
       - 'SVCS/**'
       - '.github/workflows/svcs-build.yml'
-      - 'TARS/TARS.py'
+      - 'ENDR/TARS/TARS.py'
   workflow_run:
     workflows:
       - TARS - Init and Reconcile
@@ -121,12 +121,12 @@ jobs:
         if: ${{ steps.detect_source_services.outputs.services != '' }}
         run: |
           set -euo pipefail
-          python3 TARS/TARS.py update-image-tags \
+          python3 ENDR/TARS/TARS.py update-image-tags \
             --repo-root . \
             --services "${{ steps.detect_source_services.outputs.services }}" \
             --tag "${{ steps.tag.outputs.tag }}" \
             --allow-missing
-          python3 TARS/TARS.py svcs-check \
+          python3 ENDR/TARS/TARS.py svcs-check \
             --repo-root . \
             --write-worktree \
             --write-scope gitops > /tmp/tars-svcs-sync.json
@@ -135,13 +135,13 @@ jobs:
         id: discover
         run: |
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            python3 TARS/TARS.py discover-changed-services \
+            python3 ENDR/TARS/TARS.py discover-changed-services \
               --repo-root . \
               --all-services \
               --registry dockerhub \
               --image-owner "${{ secrets.DOCKERHUB_USERNAME }}"
           else
-            python3 TARS/TARS.py discover-changed-services \
+            python3 ENDR/TARS/TARS.py discover-changed-services \
               --repo-root . \
               --before "${{ steps.detect_source_services.outputs.before_sha }}" \
               --after "${{ steps.detect_source_services.outputs.after_sha }}" \
@@ -270,12 +270,12 @@ jobs:
       - name: Apply publish tag to config
         run: |
           set -euo pipefail
-          python3 TARS/TARS.py update-image-tags \
+          python3 ENDR/TARS/TARS.py update-image-tags \
             --repo-root . \
             --services "${{ needs['services-change-discovery'].outputs.services }}" \
             --tag "${{ needs['services-change-discovery'].outputs.tag }}" \
             --allow-missing
-          python3 TARS/TARS.py svcs-check \
+          python3 ENDR/TARS/TARS.py svcs-check \
             --repo-root . \
             --write-worktree \
             --write-scope gitops > /tmp/tars-svcs-sync.json

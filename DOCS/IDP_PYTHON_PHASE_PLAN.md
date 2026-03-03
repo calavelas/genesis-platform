@@ -7,7 +7,7 @@ This plan adapts your original IDP idea to match the way Genesis was structured:
 - validate first, then generate, then raise PR
 
 Current implementation status:
-- Phase 1 (config-driven reconcile + PR automation) is now implemented via `TARS/TARS.py svcs-check` and `.github/workflows/tars-init.yml`.
+- Phase 1 (config-driven reconcile + PR automation) is now implemented via `ENDR/TARS/TARS.py svcs-check` and `.github/workflows/tars-init.yml`.
 
 Related:
 - portfolio narrative: `DOCS/PORTFOLIO_BUILD_GUIDE.md`
@@ -42,7 +42,7 @@ Related:
 ```text
 /
   DOCS/
-  SCPT/
+  ENDR/SCPT/
   KUBE/
     argocd/
     clusters/
@@ -59,8 +59,8 @@ Related:
   SVCS/
     examples/
   ENDR/
-  CASE/
-  TARS/templates/
+  ENDR/CASE/
+  ENDR/TARS/templates/
     service/
     gitops/
   .github/workflows/
@@ -104,15 +104,15 @@ Exit criteria:
 Goal: one-command cluster bootstrap and app-of-apps wiring.
 
 Deliverables:
-- `SCPT/bootstrap.sh`
-- `SCPT/Makefile` targets: `bootstrap`, `down`, `port-forward`
+- `ENDR/SCPT/bootstrap.sh`
+- `ENDR/SCPT/Makefile` targets: `bootstrap`, `down`, `port-forward`
 - ArgoCD install and root app bootstrap:
   - `KUBE/clusters/mac/lab/core.yaml`
   - `KUBE/clusters/mac/lab/core/*`
 - ingress controller install and documented URLs
 
 Exit criteria:
-- `make -f SCPT/Makefile bootstrap` creates cluster and ArgoCD
+- `make -f ENDR/SCPT/Makefile bootstrap` creates cluster and ArgoCD
 - root app is Healthy/Synced
 
 ### Phase 2 - Template Engine + Scaffolder (Python)
@@ -122,8 +122,8 @@ Deliverables:
 - generator module in `ENDR`:
   - read global + service config
   - validate config/template references
-  - render service code template (`TARS/templates/service`)
-  - render Helm + Argo app template (`TARS/templates/gitops`)
+  - render service code template (`ENDR/TARS/templates/service`)
+  - render Helm + Argo app template (`ENDR/TARS/templates/gitops`)
   - write outputs into `.idp/staging/`
 - sample generated service under `SVCS/examples/`
 

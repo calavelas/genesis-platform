@@ -3,7 +3,7 @@
 Local-first GitOps Internal Developer Platform demo with:
 - GitHub as source of truth
 - ArgoCD app-of-apps deployment to local k3d
-- config-driven reconciliation (`ENDR.yaml` + `SVCS.yaml`) via `TARS/TARS.py svcs-check`
+- config-driven reconciliation (`ENDR.yaml` + `SVCS.yaml`) via `ENDR/TARS/TARS.py svcs-check`
 
 ## Repository Layout
 
@@ -13,14 +13,15 @@ Local-first GitOps Internal Developer Platform demo with:
 
 ### Main folders
 - `.github/`: GitHub Actions workflows for reconcile, validation, and image publishing.
-- `CASE/`: frontend developer portal (Next.js).
+- `ENDR/`: platform umbrella (backend runtime plus CASE, PLEX, SCPT, TARS).
+- `ENDR/CASE/`: frontend developer portal (Next.js).
 - `DOCS/`: architecture, setup, phase plans, and portfolio docs.
-- `ENDR/`: backend API runtime wrapper (FastAPI), delegating core logic to `TARS`.
+- `ENDR/PLEX/`: backend portal domain module (ArgoCD universe/API router).
 - `KUBE/`: Kubernetes and GitOps infrastructure manifests (ArgoCD, policies, monitoring).
 - `REFS/`: legacy/reference implementations used for migration guidance.
-- `SCPT/`: bootstrap/dev/CI scripts and main `Makefile`.
+- `ENDR/SCPT/`: bootstrap/dev/CI scripts and main `Makefile`.
 - `SVCS/`: deployable application services (code + Helm chart per service).
-- `TARS/`: shared Python automation engine (config loader, scaffold logic, reconcile CLI/API).
+- `ENDR/TARS/`: shared Python automation engine (config loader, scaffold logic, reconcile CLI/API).
 
 ## Quick Start
 
@@ -31,13 +32,13 @@ Local-first GitOps Internal Developer Platform demo with:
 - [DOCS/PORTFOLIO_BUILD_GUIDE.md](DOCS/PORTFOLIO_BUILD_GUIDE.md)
 
 ### Common commands
-- `make -f SCPT/Makefile bootstrap`
-- `make -f SCPT/Makefile validate-config`
-- `make -f SCPT/Makefile svcs-check`
-- `make -f SCPT/Makefile svcs-sync`
-- `make -f SCPT/Makefile smoke-test`
-- `make -f SCPT/Makefile api`
-- `make -f SCPT/Makefile web`
+- `make -f ENDR/SCPT/Makefile bootstrap`
+- `make -f ENDR/SCPT/Makefile validate-config`
+- `make -f ENDR/SCPT/Makefile svcs-check`
+- `make -f ENDR/SCPT/Makefile svcs-sync`
+- `make -f ENDR/SCPT/Makefile smoke-test`
+- `make -f ENDR/SCPT/Makefile api`
+- `make -f ENDR/SCPT/Makefile web`
 
 ### SVCS (Service) List
 

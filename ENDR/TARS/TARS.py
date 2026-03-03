@@ -11,7 +11,7 @@ from typing import Any
 
 import yaml
 
-# Allow direct execution: `python3 TARS/TARS.py ...`
+# Allow direct execution: `python3 ENDR/TARS/TARS.py ...`
 REPO_ROOT = Path(__file__).resolve().parents[1]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
@@ -383,13 +383,13 @@ def update_image_tags_main(argv: list[str] | None = None) -> int:
 def print_help() -> None:
     print(
         "Usage:\n"
-        "  python3 TARS/TARS.py svcs-check [SVCS_CHECK_ARGS...]\n"
-        "  python3 TARS/TARS.py discover-changed-services [DISCOVER_ARGS...]\n"
-        "  python3 TARS/TARS.py update-image-tags [TAG_ARGS...]\n\n"
+        "  python3 ENDR/TARS/TARS.py svcs-check [SVCS_CHECK_ARGS...]\n"
+        "  python3 ENDR/TARS/TARS.py discover-changed-services [DISCOVER_ARGS...]\n"
+        "  python3 ENDR/TARS/TARS.py update-image-tags [TAG_ARGS...]\n\n"
         "Examples:\n"
-        "  python3 TARS/TARS.py svcs-check --repo-root . --open-pr\n"
-        "  python3 TARS/TARS.py discover-changed-services --repo-root . --before <sha> --after <sha> --registry dockerhub --image-owner <owner>\n"
-        "  python3 TARS/TARS.py update-image-tags --repo-root . --services svc-a,svc-b --tag git-abcdef1\n"
+        "  python3 ENDR/TARS/TARS.py svcs-check --repo-root . --open-pr\n"
+        "  python3 ENDR/TARS/TARS.py discover-changed-services --repo-root . --before <sha> --after <sha> --registry dockerhub --image-owner <owner>\n"
+        "  python3 ENDR/TARS/TARS.py update-image-tags --repo-root . --services svc-a,svc-b --tag git-abcdef1\n"
     )
 
 

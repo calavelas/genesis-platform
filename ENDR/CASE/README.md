@@ -13,7 +13,7 @@
 
 ## Run Locally
 ```bash
-cd CASE
+cd ENDR/CASE
 npm install
 npm run dev
 ```
@@ -43,6 +43,6 @@ python -m uvicorn app.main:app --reload --host 0.0.0.0 --port 8000 --app-dir END
 
 2. Start CASE against backend:
 ```bash
-cd CASE
+cd ENDR/CASE
 ENDR_API_URL=http://127.0.0.1:8000 npm run dev
 ```

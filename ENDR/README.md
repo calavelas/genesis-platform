@@ -1,8 +1,15 @@
 # ENDR (FastAPI)
 
-`ENDR` is the backend API runtime.
+`ENDR` is the platform umbrella folder.
 
-It acts as a thin wrapper over shared logic in `TARS/`, and provides:
+It contains:
+- `app/`: backend API runtime wrapper.
+- `PLEX/`: portal domain module for ArgoCD-backed data.
+- `TARS/`: automation engine/CLI and templates.
+- `SCPT/`: platform bootstrap/dev scripts.
+- `CASE/`: frontend portal UI.
+
+It acts as a thin wrapper over shared logic in `ENDR/TARS/`, and provides:
 - config validation for `ENDR.yaml` and `SVCS.yaml`
 - service/GitOps scaffolding and reconcile API flows
 - GitHub branch/commit/PR integration

@@ -5,7 +5,7 @@ on:
     paths:
       - 'SVCS/**'
       - 'ENDR/**'
-      - 'CASE/**'
+      - 'ENDR/CASE/**'
       - '.github/workflows/validate-services.yml'
 
 jobs:

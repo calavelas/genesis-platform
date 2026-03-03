@@ -12,12 +12,12 @@
 
 ## Common usage
 ```bash
-make -f SCPT/Makefile bootstrap
-make -f SCPT/Makefile validate-config
-make -f SCPT/Makefile svcs-check
-make -f SCPT/Makefile dev-start
-make -f SCPT/Makefile dev-status
-make -f SCPT/Makefile dev-stop
+make -f ENDR/SCPT/Makefile bootstrap
+make -f ENDR/SCPT/Makefile validate-config
+make -f ENDR/SCPT/Makefile svcs-check
+make -f ENDR/SCPT/Makefile dev-start
+make -f ENDR/SCPT/Makefile dev-status
+make -f ENDR/SCPT/Makefile dev-stop
 ```
 
 Bootstrap environment overrides:
@@ -35,10 +35,10 @@ Use `dev-stack.sh` to run the full local stack:
 - ArgoCD exposed via port-forward on `https://127.0.0.1:18443`
 
 ```bash
-bash SCPT/dev-stack.sh start
-bash SCPT/dev-stack.sh status
-bash SCPT/dev-stack.sh logs all
-bash SCPT/dev-stack.sh stop
+bash ENDR/SCPT/dev-stack.sh start
+bash ENDR/SCPT/dev-stack.sh status
+bash ENDR/SCPT/dev-stack.sh logs all
+bash ENDR/SCPT/dev-stack.sh stop
 ```
 
 Environment overrides:

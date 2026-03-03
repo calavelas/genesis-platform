@@ -12,7 +12,7 @@ Primary module:
 
 Notes:
 - runtime configuration and service catalog are loaded from shared config modules in `TARS.config`.
-- `TARS/api/main.py` includes the PLEX router into the shared backend app.
+- `ENDR/TARS/api/main.py` includes the PLEX router into the shared backend app.
 
 ## ArgoCD Integration
 `build_plex_universe()` supports two data modes:

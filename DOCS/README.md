@@ -9,23 +9,23 @@
 ## Initial Architecture
 - Source of truth: GitHub monorepo
 - Deployment: ArgoCD app-of-apps to local k3d
-- Core Python module: `TARS/` (config, scaffold, genesis reconcile CLI, API handlers)
+- Core Python module: `ENDR/TARS/` (config, scaffold, genesis reconcile CLI, API handlers)
 - Backend runtime entrypoint: FastAPI (`ENDR`, thin wrapper to `TARS`)
 - Frontend: Next.js (`CASE`)
-- Templates: service + GitOps (`TARS/templates/`)
+- Templates: service + GitOps (`ENDR/TARS/templates/`)
 - Platform: ArgoCD, policies, monitoring (`KUBE/`)
 
 ## Quickstart Commands
-- `make -f SCPT/Makefile bootstrap` to create local platform dependencies in k3d.
-- `make -f SCPT/Makefile port-forward` to open ArgoCD and Grafana local access.
-- `make -f SCPT/Makefile api` to run FastAPI backend.
-- `make -f SCPT/Makefile web` to run Next.js frontend.
-- `make -f SCPT/Makefile validate-config` to validate `ENDR.yaml` and `SVCS.yaml`.
-- `make -f SCPT/Makefile svcs-check` to run Phase 1 reconcile check (dry-run, no PR).
-- `make -f SCPT/Makefile svcs-sync` to render reconcile changes into working tree.
-- `make -f SCPT/Makefile smoke-test` to run automated API/config + platform smoke checks.
-- `make -f SCPT/Makefile smoke-test-api` to run API/config checks only.
-- `make -f SCPT/Makefile smoke-test-platform` to run bootstrap/platform checks only.
+- `make -f ENDR/SCPT/Makefile bootstrap` to create local platform dependencies in k3d.
+- `make -f ENDR/SCPT/Makefile port-forward` to open ArgoCD and Grafana local access.
+- `make -f ENDR/SCPT/Makefile api` to run FastAPI backend.
+- `make -f ENDR/SCPT/Makefile web` to run Next.js frontend.
+- `make -f ENDR/SCPT/Makefile validate-config` to validate `ENDR.yaml` and `SVCS.yaml`.
+- `make -f ENDR/SCPT/Makefile svcs-check` to run Phase 1 reconcile check (dry-run, no PR).
+- `make -f ENDR/SCPT/Makefile svcs-sync` to render reconcile changes into working tree.
+- `make -f ENDR/SCPT/Makefile smoke-test` to run automated API/config + platform smoke checks.
+- `make -f ENDR/SCPT/Makefile smoke-test-api` to run API/config checks only.
+- `make -f ENDR/SCPT/Makefile smoke-test-platform` to run bootstrap/platform checks only.
 
 ## Service Scaffolding API
 - `POST /api/services` supports:
@@ -33,7 +33,7 @@
   - `dryRun: false` -> render + create branch + commit files + open GitHub PR.
 
 ## CI/CD Notes
-- Workflow `tars-init.yml` runs on PR changes to `ENDR.yaml`/`SVCS.yaml`, auto-tags changed service images (`git-<sha>`), executes `TARS/TARS.py svcs-check --write-worktree`, and auto-commits generated assets back to the same PR branch.
+- Workflow `tars-init.yml` runs on PR changes to `ENDR.yaml`/`SVCS.yaml`, auto-tags changed service images (`git-<sha>`), executes `ENDR/TARS/TARS.py svcs-check --write-worktree`, and auto-commits generated assets back to the same PR branch.
 - `tars-init.yml` publishes job annotations (`::notice::`) and a Markdown job summary with changed service/file details.
 - ArgoCD child app template now sets `syncOptions: [CreateNamespace=true]`.
 - Workflow `tars-cleanup.yml` deletes merged TARS-generated source branches.
@@ -51,7 +51,7 @@ Required repo secrets for Docker Hub publish:
 Image repository format for publish:
 - `SVCS/<name>/chart/values.yaml` -> `image.repository` should be Docker Hub style (`docker.io/<user>/<repo>` or `<user>/<repo>`).
 
-Prerequisites for `make -f SCPT/Makefile bootstrap`:
+Prerequisites for `make -f ENDR/SCPT/Makefile bootstrap`:
 - `k3d`
 - `kubectl`
 - `helm`

@@ -5,7 +5,7 @@ ACTION="${1:-start}"
 LOG_TARGET="${2:-all}"
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
+REPO_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
 RUNTIME_DIR="${REPO_ROOT}/.idp/runtime/dev-stack"
 LOG_DIR="${RUNTIME_DIR}/logs"
 
@@ -177,7 +177,7 @@ start_all() {
 
   start_process \
     "frontend" \
-    "cd '${REPO_ROOT}/CASE' && export ENDR_API_URL='${ENDR_API_URL}' && export CASE_ARGOCD_EMBED_URL='${CASE_ARGOCD_EMBED_URL}' && exec npm run dev -- --hostname '${FRONTEND_HOST}' --port '${FRONTEND_PORT}'" \
+    "cd '${REPO_ROOT}/ENDR/CASE' && export ENDR_API_URL='${ENDR_API_URL}' && export CASE_ARGOCD_EMBED_URL='${CASE_ARGOCD_EMBED_URL}' && exec npm run dev -- --hostname '${FRONTEND_HOST}' --port '${FRONTEND_PORT}'" \
     "${FRONTEND_PID_FILE}" \
     "${FRONTEND_LOG_FILE}"
 

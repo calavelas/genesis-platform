@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 CLUSTER_NAME="${CLUSTER_NAME:-mac-lab}"
 K3D_API_PORT="${K3D_API_PORT:-6550}"
 ARGOCD_NAMESPACE="${ARGOCD_NAMESPACE:-argocd}"
@@ -133,8 +133,8 @@ URLs:
 - Services (gateway): https://mann.k8s.local, https://miller.k8s.local, https://edmund.k8s.local
 
 Commands:
-- make -f SCPT/Makefile dev-start
-- make -f SCPT/Makefile port-forward-argocd
+- make -f ENDR/SCPT/Makefile dev-start
+- make -f ENDR/SCPT/Makefile port-forward-argocd
 
 Credentials:
 - ArgoCD username: admin

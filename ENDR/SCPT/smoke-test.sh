@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 MODE="${1:-all}"
 
 CLUSTER_NAME="${CLUSTER_NAME:-mac-lab}"
@@ -157,7 +157,7 @@ run_platform_checks() {
   require_cmd bash
 
   log "running bootstrap"
-  CLUSTER_NAME="${CLUSTER_NAME}" bash "${ROOT_DIR}/SCPT/bootstrap.sh"
+  CLUSTER_NAME="${CLUSTER_NAME}" bash "${ROOT_DIR}/ENDR/SCPT/bootstrap.sh"
 
   log "verifying kubernetes context"
   kubectl config use-context "k3d-${CLUSTER_NAME}" >/dev/null

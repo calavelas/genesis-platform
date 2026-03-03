@@ -7,7 +7,7 @@ on:
     paths:
       - 'ENDR.yaml'
       - 'SVCS.yaml'
-      - 'TARS/**'
+      - 'ENDR/TARS/**'
       - '.github/workflows/tars-init.yml'
   pull_request:
     types:
@@ -17,7 +17,7 @@ on:
     paths:
       - 'ENDR.yaml'
       - 'SVCS.yaml'
-      - 'TARS/**'
+      - 'ENDR/TARS/**'
       - '.github/workflows/tars-init.yml'
   workflow_dispatch:
 
@@ -97,7 +97,7 @@ jobs:
           fi
           TAG_VALUE="git-${TAG_SHA:0:7}"
 
-          python3 TARS/TARS.py update-image-tags \
+          python3 ENDR/TARS/TARS.py update-image-tags \
             --repo-root . \
             --services "${{ steps.detect_source_services.outputs.services }}" \
             --tag "$TAG_VALUE"
@@ -108,7 +108,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -euo pipefail
-          python3 TARS/TARS.py svcs-check \
+          python3 ENDR/TARS/TARS.py svcs-check \
             --repo-root . \
             --write-worktree
 
