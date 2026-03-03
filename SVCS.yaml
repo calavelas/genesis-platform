@@ -1,4 +1,4 @@
-services: 
+services:
 - name: sample
   namespace: demo
   environments:
@@ -11,3 +11,4 @@ services:
   overrides:
     gateway:
       enabled: true
+    image: calavelas/sample:7d952b8
