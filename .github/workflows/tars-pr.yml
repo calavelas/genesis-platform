@@ -1,0 +1,245 @@
+name: TARS - PR Check and Merge
+
+on:
+  pull_request:
+    types:
+      - opened
+      - synchronize
+      - reopened
+    paths:
+      - 'ENDR.yaml'
+      - 'SVCS.yaml'
+      - '.github/workflows/tars-pr.yml'
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  reconcile:
+    name: Reconcile
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.ref }}
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install fastapi pydantic pyyaml ruamel.yaml jinja2 certifi
+
+      - name: Prepare config compatibility for activeCluster
+        id: config_compat
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import os
+          import pathlib
+          import yaml
+
+          root = pathlib.Path(".")
+          source = root / "ENDR.yaml"
+          payload = yaml.safe_load(source.read_text(encoding="utf-8")) or {}
+          cfg = payload.setdefault("config", {})
+
+          active_cluster = cfg.get("activeCluster")
+          if active_cluster:
+              with open(pathlib.Path(os.environ["GITHUB_OUTPUT"]), "a", encoding="utf-8") as fh:
+                  fh.write("idp_config_path=ENDR.yaml\n")
+              raise SystemExit(0)
+
+          inferred = None
+          clusters = cfg.get("clusters")
+          if isinstance(clusters, dict) and clusters:
+              inferred = next(iter(clusters.keys()))
+          if not inferred:
+              envs = cfg.get("environments", {})
+              if isinstance(envs, dict):
+                  kube = envs.get("kubernetes", [])
+                  if isinstance(kube, list) and kube:
+                      first = kube[0]
+                      if isinstance(first, dict):
+                          inferred = first.get("name")
+                      elif isinstance(first, str):
+                          inferred = first
+
+          if not inferred:
+              raise SystemExit("Unable to infer config.activeCluster from ENDR.yaml")
+
+          cfg["activeCluster"] = inferred
+          compat_dir = root / ".idp" / "runtime"
+          compat_dir.mkdir(parents=True, exist_ok=True)
+          compat_path = compat_dir / "ENDR.ci.yaml"
+          compat_path.write_text(yaml.safe_dump(payload, sort_keys=False), encoding="utf-8")
+
+          with open(pathlib.Path(os.environ["GITHUB_OUTPUT"]), "a", encoding="utf-8") as fh:
+              fh.write(f"idp_config_path={compat_path.as_posix()}\n")
+          PY
+
+      - name: Reconcile (check)
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          IDP_CONFIG_PATH: ${{ steps.config_compat.outputs.idp_config_path }}
+        run: |
+          set -euo pipefail
+          python3 ENDR/TARS/TARS.py svcs-check --repo-root .
+
+  case-auto-merge:
+    name: CASE Auto Merge
+    needs:
+      - reconcile
+    if: >
+      github.event.pull_request.base.ref == 'main' &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      (
+        startsWith(github.event.pull_request.head.ref, 'case/') ||
+        startsWith(github.event.pull_request.head.ref, 'idp/')
+      ) &&
+      startsWith(github.event.pull_request.title, 'CASE : Adding service :')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Approve and merge CASE PR
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const pr = context.payload.pull_request;
+            const { owner, repo } = context.repo;
+            const deleteSourceBranch = `${{ vars.TARS_DELETE_SOURCE_BRANCH_ON_MERGE }}` !== "false";
+            const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+            const body = String(pr.body || "");
+            if (!body.includes("Registered by IDP API.")) {
+              core.notice("Skipping CASE auto-merge: PR body marker not found.");
+              return;
+            }
+
+            const files = await github.paginate(github.rest.pulls.listFiles, {
+              owner,
+              repo,
+              pull_number: pr.number,
+              per_page: 100,
+            });
+            const changedPaths = files.map((item) => item.filename).sort();
+            if (changedPaths.length !== 1 || changedPaths[0] !== "SVCS.yaml") {
+              core.notice(
+                `Skipping CASE auto-merge: expected SVCS.yaml-only change, got [${changedPaths.join(", ")}]`
+              );
+              return;
+            }
+
+            try {
+              await github.rest.pulls.createReview({
+                owner,
+                repo,
+                pull_number: pr.number,
+                event: "APPROVE",
+                body: "Auto-approved by CASE policy (SVCS.yaml-only change).",
+              });
+              core.notice(`Approved PR #${pr.number}.`);
+            } catch (error) {
+              core.warning(`Approval step failed: ${error.message}`);
+            }
+
+            let latestPr = null;
+            for (let attempt = 0; attempt < 8; attempt += 1) {
+              const result = await github.rest.pulls.get({
+                owner,
+                repo,
+                pull_number: pr.number,
+              });
+              latestPr = result.data;
+              if (latestPr.mergeable !== null) {
+                break;
+              }
+              await sleep(2000);
+            }
+
+            if (!latestPr) {
+              throw new Error(`Unable to load PR state for #${pr.number}`);
+            }
+
+            if (latestPr.merged) {
+              core.notice(`PR #${pr.number} is already merged.`);
+            } else {
+              try {
+                await github.rest.pulls.merge({
+                  owner,
+                  repo,
+                  pull_number: pr.number,
+                  merge_method: "squash",
+                  sha: latestPr.head.sha,
+                });
+                core.notice(`Merged PR #${pr.number} via direct merge.`);
+              } catch (error) {
+                core.notice(`Direct merge not ready for PR #${pr.number}: ${error.message}`);
+                await github.graphql(
+                  `
+                  mutation EnableAutoMerge($pullRequestId: ID!, $expectedHeadOid: GitObjectID!) {
+                    enablePullRequestAutoMerge(
+                      input: {
+                        pullRequestId: $pullRequestId
+                        mergeMethod: SQUASH
+                        expectedHeadOid: $expectedHeadOid
+                      }
+                    ) {
+                      pullRequest {
+                        number
+                      }
+                    }
+                  }
+                  `,
+                  {
+                    pullRequestId: latestPr.node_id,
+                    expectedHeadOid: latestPr.head.sha,
+                  }
+                );
+                core.notice(`Enabled auto-merge for PR #${pr.number}.`);
+              }
+            }
+
+            if (!deleteSourceBranch) {
+              core.notice("Skipping branch deletion because vars.TARS_DELETE_SOURCE_BRANCH_ON_MERGE=false");
+              return;
+            }
+
+            const loadPr = async () => {
+              const result = await github.rest.pulls.get({
+                owner,
+                repo,
+                pull_number: pr.number,
+              });
+              return result.data;
+            };
+
+            let mergedPr = await loadPr();
+            for (let attempt = 0; attempt < 20 && !mergedPr.merged; attempt += 1) {
+              await sleep(2000);
+              mergedPr = await loadPr();
+            }
+            if (!mergedPr.merged) {
+              core.notice(`PR #${pr.number} is not merged yet; skip branch deletion.`);
+              return;
+            }
+
+            try {
+              await github.rest.git.deleteRef({
+                owner,
+                repo,
+                ref: `heads/${pr.head.ref}`,
+              });
+              core.notice(`Deleted merged branch: ${pr.head.ref}`);
+            } catch (error) {
+              if (error && (error.status === 404 || error.status === 422)) {
+                core.notice(`Merged branch already absent: ${pr.head.ref}`);
+                return;
+              }
+              throw error;
+            }
