@@ -154,7 +154,7 @@ jobs:
               echo "count=${COUNT}"
             } >> "$GITHUB_OUTPUT"
 
-            SKIPPED_LINES="$(python3 -c 'import json, sys; p=json.load(sys.stdin); print(\"\\n\".join(p.get(\"skipped\", [])))' < "${FILTERED_JSON}")"
+            SKIPPED_LINES="$(python3 -c 'import json, sys; p=json.load(sys.stdin); print("\n".join(p.get("skipped", [])))' < "${FILTERED_JSON}")"
             if [ -n "${SKIPPED_LINES}" ]; then
               {
                 echo 'skipped<<EOF'
