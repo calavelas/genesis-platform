@@ -1,4 +1,4 @@
-name: TARS - Generate and Reconcile
+name: TARS - Reconcile and Update
 
 on:
   push:

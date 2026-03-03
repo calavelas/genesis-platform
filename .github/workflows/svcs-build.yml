@@ -1,4 +1,4 @@
-name: SVCS - Build and Deploy
+name: SVCS - Build and Deploy SVCS
 
 on:
   workflow_run:
