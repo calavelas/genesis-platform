@@ -16,12 +16,11 @@ resources:
 
 httpRoute:
   enabled: true
-  pathPrefix: /case-e2e-pr-test-20260304000108
-  stripPrefix: true
+  pathPrefix: /
   parentRefs:
     - group: gateway.networking.k8s.io
       kind: Gateway
       name: gateway-cloudflare
       namespace: gateway
   hostnames:
-    - svcs.calavelas.net
+    - case-e2e-pr-test-20260304000108.calavelas.net

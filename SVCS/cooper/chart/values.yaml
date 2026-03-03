@@ -23,4 +23,4 @@ httpRoute:
       name: gateway-cloudflare
       namespace: gateway
   hostnames:
-    - cooper.svcs.calavelas.net
+    - cooper.calavelas.net

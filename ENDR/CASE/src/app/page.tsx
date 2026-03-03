@@ -1,10 +1,11 @@
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
+import Link from "next/link";
+
 import { ArgoEmbedPanel } from "./components/argo-embed-panel";
 import { PortalFrame } from "./components/portal-frame";
 import {
-  buildArgoApplicationUrl,
   hasAttention,
   healthTone,
   loadUniverse,
@@ -81,15 +82,13 @@ export default async function HomePage() {
               {serviceApps.map((service) => (
                 <li key={`service-${service.name}`}>
                   <div>
-                    <a
+                    <Link
                       className="entity-link"
-                      href={buildArgoApplicationUrl(embedUrl, service.name)}
-                      target="_blank"
-                      rel="noreferrer"
-                      title={`Open ${service.name} in ArgoCD`}
+                      href={`/services/${encodeURIComponent(service.name)}`}
+                      title={`Open ${service.name} service page`}
                     >
                       <strong>{service.name}</strong>
-                    </a>
+                    </Link>
                     <small>{service.namespace}</small>
                   </div>
                   <div className="status-meta">

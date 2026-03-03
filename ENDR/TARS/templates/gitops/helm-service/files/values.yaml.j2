@@ -16,8 +16,7 @@ resources:
 
 httpRoute:
   enabled: {{ gateway_enabled }}
-  pathPrefix: {{ gateway_path_prefix }}
-  stripPrefix: true
+  pathPrefix: /
   parentRefs:
     - group: gateway.networking.k8s.io
       kind: Gateway
