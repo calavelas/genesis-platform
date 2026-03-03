@@ -591,6 +591,67 @@ code {
   border-color: #434348;
 }
 
+.create-panel {
+  display: grid;
+  gap: 0.7rem;
+}
+
+.create-form {
+  display: grid;
+  gap: 0.6rem;
+}
+
+.create-form label {
+  display: grid;
+  gap: 0.3rem;
+  font-size: 0.78rem;
+  color: #d4d4d9;
+}
+
+.create-form input,
+.create-form select {
+  width: 100%;
+  border: 1px solid #3b3b42;
+  border-radius: 0.5rem;
+  background: #18181c;
+  color: #f2f2f4;
+  padding: 0.48rem 0.55rem;
+  font-size: 0.83rem;
+}
+
+.form-error {
+  margin: 0;
+  color: #f3acb4;
+  font-size: 0.78rem;
+}
+
+.form-actions {
+  display: flex;
+  justify-content: flex-start;
+}
+
+.form-actions .open-link {
+  cursor: pointer;
+}
+
+.form-actions .open-link:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.create-result {
+  border: 1px solid #35353d;
+  border-radius: 0.64rem;
+  background: #232329;
+  padding: 0.62rem;
+}
+
+.create-result h3 {
+  margin: 0 0 0.44rem;
+  font-size: 0.84rem;
+  color: #dbdbde;
+}
+
 @media (max-width: 1320px) {
   .portal-layout {
     grid-template-columns: 220px 1fr;

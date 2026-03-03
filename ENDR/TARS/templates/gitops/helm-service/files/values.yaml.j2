@@ -15,7 +15,7 @@ resources:
     memory: {{ limits_memory }}
 
 httpRoute:
-  enabled: {{ ingress_enabled }}
+  enabled: {{ gateway_enabled }}
   pathPrefix: /
   parentRefs:
     - group: gateway.networking.k8s.io
@@ -23,4 +23,4 @@ httpRoute:
       name: gateway-cloudflare
       namespace: gateway
   hostnames:
-    - {{ ingress_host or (service_name + ".svcs.calavelas.net") }}
+    - {{ gateway_hostname }}

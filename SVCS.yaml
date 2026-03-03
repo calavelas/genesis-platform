@@ -1,16 +1,19 @@
 services:
 - name: miller
   namespace: demo
-  deployTo:
+  environments:
   - mac-lab
   generator:
     service:
       template: python-fastapi
     gitops:
       template: helm-service
+  overrides:
+    gateway:
+      enabled: true
 - name: test
   namespace: default
-  deployTo:
+  environments:
   - mac-lab
   generator:
     service:
@@ -18,14 +21,11 @@ services:
     gitops:
       template: helm-service
   overrides:
-    port: 8080
-    env: {}
-    ingress:
+    gateway:
       enabled: true
-      host: test.svcs.calavelas.net
 - name: test2
   namespace: default
-  deployTo:
+  environments:
   - mac-lab
   generator:
     service:
@@ -33,8 +33,5 @@ services:
     gitops:
       template: helm-service
   overrides:
-    port: 8080
-    env: {}
-    ingress:
+    gateway:
       enabled: true
-      host: test2.svcs.calavelas.net

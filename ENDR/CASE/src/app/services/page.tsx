@@ -35,6 +35,9 @@ export default async function ServicesPage() {
             <h1>Services</h1>
             <p className="hero-subtitle">Component-style catalog table with drill-down into each service.</p>
           </div>
+          <Link className="open-link" href="/create">
+            Create Service
+          </Link>
         </section>
 
         {universe.warnings.length > 0 && (

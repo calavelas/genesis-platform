@@ -47,7 +47,7 @@ def write_github_output(values: dict[str, str]) -> None:
 
 
 def classify_component(service_name: str, repo_path: str, apps_repo_dir: str) -> str:
-    if repo_path == f"{apps_repo_dir}/{service_name}.yaml":
+    if repo_path.startswith("KUBE/clusters/") and repo_path.endswith(f"/services/{service_name}.yaml"):
         return "app"
     if repo_path.startswith(f"SVCS/{service_name}/chart/"):
         return "gitops"
@@ -60,8 +60,7 @@ def _service_name_from_repo_path(repo_path: str, apps_repo_dir: str) -> str | No
         if len(parts) >= 2 and parts[1]:
             return parts[1]
 
-    prefix = f"{apps_repo_dir}/"
-    if repo_path.startswith(prefix) and repo_path.endswith(".yaml"):
+    if repo_path.startswith("KUBE/clusters/") and "/services/" in repo_path and repo_path.endswith(".yaml"):
         return Path(repo_path).stem
 
     return None
@@ -173,8 +172,10 @@ def discover_managed_services(repo_root: Path, idp_config: Any) -> set[str]:
             if (entry / "chart" / "values.yaml").exists() or (entry / "Dockerfile").exists():
                 managed.add(entry.name)
 
-    apps_root = cluster_apps_abs_dir(repo_root, idp_config)
-    if apps_root.exists():
+    for environment_alias in idp_config.config.clusters:
+        apps_root = cluster_apps_abs_dir(repo_root, idp_config, environment_alias)
+        if not apps_root.exists():
+            continue
         for file_path in apps_root.glob("*.y*ml"):
             if not file_path.is_file():
                 continue
@@ -186,9 +187,10 @@ def discover_managed_services(repo_root: Path, idp_config: Any) -> set[str]:
 
 def collect_service_files_for_delete(repo_root: Path, idp_config: Any, service_name: str) -> list[str]:
     files: set[str] = set()
-    app_file = cluster_apps_abs_dir(repo_root, idp_config) / f"{service_name}.yaml"
-    if app_file.exists() and app_file.is_file():
-        files.add(app_file.relative_to(repo_root).as_posix())
+    for environment_alias in idp_config.config.clusters:
+        app_file = cluster_apps_abs_dir(repo_root, idp_config, environment_alias) / f"{service_name}.yaml"
+        if app_file.exists() and app_file.is_file():
+            files.add(app_file.relative_to(repo_root).as_posix())
 
     service_root = repo_root / "SVCS" / service_name
     if service_root.exists() and service_root.is_dir():

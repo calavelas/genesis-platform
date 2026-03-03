@@ -169,10 +169,10 @@ def validate_consistency(
         else:
             service_names.add(service.name)
 
-        for environment in service.deployTo:
+        for environment in service.environments:
             if environment not in cluster_aliases:
                 errors.append(
-                    f"service '{service.name}' deployTo contains unknown cluster '{environment}'"
+                    f"service '{service.name}' environments contains unknown cluster '{environment}'"
                 )
 
         if service.generator.service.template not in service_template_names:

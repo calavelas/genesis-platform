@@ -7,9 +7,13 @@ config:
     owner: calavelas
     repo: ENDR
     defaultBranch: main
-  clusters:
-    mac-lab:
-      name: mac-lab
+  environments:
+    kubernetes:
+    - name: mac-lab
+      description: Testing K8s cluster on Mac
+  namespace:
+    - name: demo
+    - name: demo2
 templates:
   extends: []
   service:
@@ -19,6 +23,10 @@ templates:
       path: ENDR/TARS/templates/service/python-fastapi
   gitops:
     - name: helm-service
+      type: gitops
+      description: Helm chart and ArgoCD app template
+      path: ENDR/TARS/templates/gitops/helm-service
+    - name: helm-service2
       type: gitops
       description: Helm chart and ArgoCD app template
       path: ENDR/TARS/templates/gitops/helm-service

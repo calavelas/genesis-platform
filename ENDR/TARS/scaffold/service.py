@@ -6,7 +6,7 @@ import os
 from pathlib import Path
 
 from jinja2 import Environment, StrictUndefined
-from pydantic import BaseModel, Field
+from pydantic import AliasChoices, BaseModel, Field
 
 from TARS.config.loader import load_all_configs
 from TARS.config.paths import (
@@ -17,7 +17,7 @@ from TARS.config.paths import (
 )
 from TARS.config.models import (
     IDPConfig,
-    IngressConfig,
+    GatewayConfig,
     ResourceConfig,
     ServiceEntry,
     ServiceOverrides,
@@ -31,11 +31,16 @@ class CreateServiceRequest(BaseModel):
     image: str | None = None
     port: int = Field(default=8080, ge=1, le=65535)
     namespace: str | None = None
-    deployTo: list[str] = Field(default_factory=list)
+    environments: list[str] = Field(
+        default_factory=list,
+        validation_alias=AliasChoices("environments", "deployTo"),
+    )
     env: dict[str, str] = Field(default_factory=dict)
     resources: ResourceConfig | None = None
-    ingressEnabled: bool = True
-    ingressHost: str | None = None
+    gatewayEnabled: bool = Field(
+        default=True,
+        validation_alias=AliasChoices("gatewayEnabled", "ingressEnabled"),
+    )
     serviceTemplate: str | None = None
     gitopsTemplate: str | None = None
     dryRun: bool = True
@@ -77,30 +82,27 @@ def _resolve_local_template_path(repo_root: Path, template: TemplateRef) -> Path
 
 
 def _build_overrides(request: CreateServiceRequest) -> ServiceOverrides:
-    ingress_host = request.ingressHost
-    if request.ingressEnabled and not ingress_host:
-        ingress_host = f"{request.name}.svcs.calavelas.net"
-    ingress = IngressConfig(enabled=request.ingressEnabled, host=ingress_host)
+    gateway = GatewayConfig(enabled=request.gatewayEnabled)
     return ServiceOverrides(
         image=request.image,
         port=request.port,
         env=request.env,
         resources=request.resources,
-        ingress=ingress,
+        gateway=gateway,
     )
 
 
 def _build_service_entry(
     request: CreateServiceRequest,
     namespace: str,
-    deploy_to: list[str],
+    environments: list[str],
     service_template_name: str,
     gitops_template_name: str,
 ) -> ServiceEntry:
     return ServiceEntry(
         name=request.name,
         namespace=namespace,
-        deployTo=deploy_to,
+        environments=environments,
         generator={
             "service": {"template": service_template_name},
             "gitops": {"template": gitops_template_name},
@@ -135,11 +137,8 @@ def _build_template_context(
         limits_cpu = service.overrides.resources.limits.cpu
         limits_memory = service.overrides.resources.limits.memory
 
-    ingress_enabled = "true" if service.overrides.ingress.enabled else "false"
-    ingress_host = (
-        service.overrides.ingress.host
-        or f"{service.name}.svcs.calavelas.net"
-    )
+    gateway_enabled = "true" if service.overrides.gateway.enabled else "false"
+    gateway_hostname = f"{service.name}.svcs.calavelas.net"
 
     return {
         "service_name": service.name,
@@ -154,8 +153,8 @@ def _build_template_context(
         "requests_memory": requests_memory,
         "limits_cpu": limits_cpu,
         "limits_memory": limits_memory,
-        "ingress_enabled": ingress_enabled,
-        "ingress_host": ingress_host,
+        "gateway_enabled": gateway_enabled,
+        "gateway_hostname": gateway_hostname,
         "env": service.overrides.env,
     }
 
@@ -190,27 +189,19 @@ def _render_template_tree(template_root: Path, out_dir: Path, context: dict[str,
 
 
 def _service_entry_dict(service: ServiceEntry) -> dict[str, object]:
-    entry: dict[str, object] = {
-        "name": service.name,
-        "namespace": service.namespace,
-        "deployTo": service.deployTo,
-        "generator": {
-            "service": {"template": service.generator.service.template},
-            "gitops": {"template": service.generator.gitops.template},
-        },
-        "overrides": {
-            "port": service.overrides.port,
-            "env": service.overrides.env,
-            "ingress": {
-                "enabled": service.overrides.ingress.enabled,
-                "host": service.overrides.ingress.host,
-            },
-        },
+    overrides: dict[str, object] = {
+        "gateway": {
+            "enabled": service.overrides.gateway.enabled,
+        }
     }
     if service.overrides.image:
-        entry["overrides"]["image"] = service.overrides.image
+        overrides["image"] = service.overrides.image
+    if service.overrides.port != 8080:
+        overrides["port"] = service.overrides.port
+    if service.overrides.env:
+        overrides["env"] = service.overrides.env
     if service.overrides.resources:
-        entry["overrides"]["resources"] = {
+        overrides["resources"] = {
             "requests": {
                 "cpu": service.overrides.resources.requests.cpu,
                 "memory": service.overrides.resources.requests.memory,
@@ -220,28 +211,56 @@ def _service_entry_dict(service: ServiceEntry) -> dict[str, object]:
                 "memory": service.overrides.resources.limits.memory,
             },
         }
+
+    entry: dict[str, object] = {
+        "name": service.name,
+        "namespace": service.namespace,
+        "environments": service.environments,
+        "generator": {
+            "service": {"template": service.generator.service.template},
+            "gitops": {"template": service.generator.gitops.template},
+        },
+        "overrides": overrides,
+    }
     return entry
 
 
-def _render_updated_services_config(services_config_path: Path, service: ServiceEntry) -> bytes:
+def _render_updated_services_config_bytes(raw_services_config: bytes, service: ServiceEntry) -> bytes:
     try:
         import yaml
     except ModuleNotFoundError as exc:
         raise RuntimeError("PyYAML is required for services config updates") from exc
 
-    raw_data = yaml.safe_load(services_config_path.read_text(encoding="utf-8")) or {}
+    raw_data = yaml.safe_load(raw_services_config.decode("utf-8")) or {}
+    if not isinstance(raw_data, dict):
+        raise ValueError("SVCS.yaml root must be a mapping")
+
     existing_services = raw_data.get("services", [])
+    if not isinstance(existing_services, list):
+        raise ValueError("SVCS.yaml services must be a list")
+
+    for existing in existing_services:
+        if isinstance(existing, dict) and existing.get("name") == service.name:
+            raise ValueError(f"service already exists in SVCS.yaml: {service.name}")
+
     existing_services.append(_service_entry_dict(service))
     raw_data["services"] = existing_services
     rendered = yaml.safe_dump(raw_data, sort_keys=False, allow_unicode=False)
     return rendered.encode("utf-8")
 
 
+def _render_updated_services_config(services_config_path: Path, service: ServiceEntry) -> bytes:
+    return _render_updated_services_config_bytes(
+        services_config_path.read_bytes(),
+        service,
+    )
+
+
 def _collect_commit_files(
     stage_service_dir: Path,
     stage_gitops_dir: Path,
     idp_config: IDPConfig,
-    service_name: str,
+    service: ServiceEntry,
 ) -> dict[str, bytes]:
     files: dict[str, bytes] = {}
 
@@ -249,7 +268,7 @@ def _collect_commit_files(
         if not file_path.is_file():
             continue
         relative = file_path.relative_to(stage_service_dir).as_posix()
-        repo_path = f"SVCS/{service_name}/{relative}"
+        repo_path = f"SVCS/{service.name}/{relative}"
         files[repo_path] = file_path.read_bytes()
 
     for file_path in sorted(stage_gitops_dir.rglob("*")):
@@ -257,9 +276,13 @@ def _collect_commit_files(
             continue
         relative = file_path.relative_to(stage_gitops_dir).as_posix()
         if relative == "argocd-application.yaml":
-            repo_path = service_app_manifest_repo_path(idp_config, service_name)
+            repo_path = service_app_manifest_repo_path(
+                idp_config,
+                service.name,
+                service.environments[0] if service.environments else None,
+            )
         else:
-            repo_path = f"SVCS/{service_name}/chart/{relative}"
+            repo_path = f"SVCS/{service.name}/chart/{relative}"
         files[repo_path] = file_path.read_bytes()
 
     return files
@@ -294,12 +317,24 @@ def render_scaffold_for_service(
 
     _render_template_tree(service_template_path, stage_service_dir, context)
     _render_template_tree(gitops_template_path, stage_gitops_dir, context)
-    return _collect_commit_files(stage_service_dir, stage_gitops_dir, idp_config, service.name)
+    return _collect_commit_files(stage_service_dir, stage_gitops_dir, idp_config, service)
 
 
 def _build_branch_name(service_name: str) -> str:
     timestamp = datetime.now(tz=UTC).strftime("%Y%m%d%H%M%S")
     return f"idp/{service_name}-{timestamp}"
+
+
+def _validate_template_selection(
+    idp_config: IDPConfig,
+    repo_root: Path,
+    service_template_name: str,
+    gitops_template_name: str,
+) -> None:
+    service_template = _find_template(idp_config.templates.service, service_template_name)
+    gitops_template = _find_template(idp_config.templates.gitops, gitops_template_name)
+    _resolve_local_template_path(repo_root, service_template)
+    _resolve_local_template_path(repo_root, gitops_template)
 
 
 def create_service(request: CreateServiceRequest) -> CreateServiceResponse:
@@ -315,41 +350,71 @@ def create_service(request: CreateServiceRequest) -> CreateServiceResponse:
     )
     if not service_template_name or not gitops_template_name:
         raise ValueError("service and gitops templates must be configured in ENDR.yaml")
+    _validate_template_selection(
+        idp_config=idp_config,
+        repo_root=repo_root,
+        service_template_name=service_template_name,
+        gitops_template_name=gitops_template_name,
+    )
 
     for existing in services_config.services:
         if existing.name == request.name:
             raise ValueError(f"service already exists in SVCS.yaml: {request.name}")
 
     namespace = request.namespace or DEFAULT_SERVICE_NAMESPACE
-    deploy_to = request.deployTo if request.deployTo else [active_cluster_alias(idp_config)]
+    environments = request.environments if request.environments else [active_cluster_alias(idp_config)]
     service = _build_service_entry(
         request,
         namespace,
-        deploy_to,
+        environments,
         service_template_name,
         gitops_template_name,
     )
 
     known_clusters = set(idp_config.config.clusters.keys())
-    unknown_clusters = [cluster for cluster in service.deployTo if cluster not in known_clusters]
+    unknown_clusters = [cluster for cluster in service.environments if cluster not in known_clusters]
     if unknown_clusters:
         raise ValueError(
-            f"unknown deployTo clusters: {', '.join(sorted(set(unknown_clusters)))}"
+            f"unknown environments: {', '.join(sorted(set(unknown_clusters)))}"
         )
 
     staging_root = repo_root / ".idp" / "staging" / service.name
-    commit_files = render_scaffold_for_service(
-        service=service,
-        idp_config=idp_config,
-        repo_root=repo_root,
-        staging_root=staging_root,
-    )
+    if request.dryRun:
+        commit_files = render_scaffold_for_service(
+            service=service,
+            idp_config=idp_config,
+            repo_root=repo_root,
+            staging_root=staging_root,
+        )
+    else:
+        if staging_root.exists():
+            shutil.rmtree(staging_root, ignore_errors=True)
+        staging_root.mkdir(parents=True, exist_ok=True)
+        commit_files: dict[str, bytes] = {}
 
     try:
         relative_services_config = services_config_path.relative_to(repo_root).as_posix()
     except ValueError as exc:
         raise ValueError("SVCS.yaml must be inside repository root for PR workflow") from exc
-    commit_files[relative_services_config] = _render_updated_services_config(services_config_path, service)
+
+    github_token = os.environ.get("GITHUB_TOKEN")
+    if not request.dryRun and not github_token:
+        raise ValueError("GITHUB_TOKEN is required when dryRun=false")
+
+    if request.dryRun:
+        commit_files[relative_services_config] = _render_updated_services_config(services_config_path, service)
+    else:
+        github_client = GitHubClient(
+            token=github_token or "",
+            owner=idp_config.config.git.owner,
+            repo=idp_config.config.git.repo,
+        )
+        base_branch = idp_config.config.git.defaultBranch
+        remote_services_config = github_client.get_file_content(base_branch, relative_services_config)
+        if remote_services_config is not None:
+            commit_files[relative_services_config] = _render_updated_services_config_bytes(remote_services_config, service)
+        else:
+            commit_files[relative_services_config] = _render_updated_services_config(services_config_path, service)
 
     preview_config_file = staging_root / "SVCS.yaml"
     preview_config_file.write_bytes(commit_files[relative_services_config])
@@ -367,13 +432,9 @@ def create_service(request: CreateServiceRequest) -> CreateServiceResponse:
     if request.dryRun:
         return response
 
-    github_token = os.environ.get("GITHUB_TOKEN")
-    if not github_token:
-        raise ValueError("GITHUB_TOKEN is required when dryRun=false")
-
     branch_name = request.branchName or _build_branch_name(service.name)
     github_client = GitHubClient(
-        token=github_token,
+        token=github_token or "",
         owner=idp_config.config.git.owner,
         repo=idp_config.config.git.repo,
     )
@@ -383,20 +444,25 @@ def create_service(request: CreateServiceRequest) -> CreateServiceResponse:
         github_client.create_branch(branch_name, base_sha)
 
         for file_path, content in sorted(commit_files.items(), key=lambda item: item[0]):
+            if file_path == relative_services_config:
+                commit_message = f"feat(idp): register service {service.name} in SVCS.yaml"
+            else:
+                commit_message = f"feat(idp): scaffold {service.name} ({file_path})"
             github_client.create_or_update_file(
                 branch=branch_name,
                 file_path=file_path,
                 content_bytes=content,
-                commit_message=f"feat(idp): scaffold {service.name} ({file_path})",
+                commit_message=commit_message,
             )
 
         pr = github_client.create_pull_request(
-            title=f"feat(idp): scaffold service {service.name}",
+            title=f"CASE : Adding service : {service.name}",
             body=(
-                f"Scaffolded by IDP API.\n\n"
+                f"Registered by IDP API.\n\n"
                 f"- service: `{service.name}`\n"
                 f"- namespace: `{service.namespace}`\n"
-                f"- generated files: {len(commit_files)}"
+                f"- changed files in PR: `SVCS.yaml` only\n"
+                f"- post-merge generation: handled by TARS GitHub workflow"
             ),
             head=branch_name,
             base=base_branch,
