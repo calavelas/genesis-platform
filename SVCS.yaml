@@ -24,7 +24,7 @@ services:
   overrides:
     gateway:
       enabled: true
-    image: calavelas/cooper:d0dd719
+    image: calavelas/cooper:4e6b804
 - name: miller
   namespace: demo
   environments:
@@ -37,3 +37,4 @@ services:
   overrides:
     gateway:
       enabled: true
+    image: calavelas/miller:4e6b804
