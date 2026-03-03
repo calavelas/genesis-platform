@@ -1,7 +1,7 @@
 replicaCount: 1
 image:
   repository: calavelas/plex
-  tag: 6ec51f5
+  tag: 431336e
   pullPolicy: IfNotPresent
 service:
   type: ClusterIP
@@ -11,15 +11,15 @@ httpRoute:
   enabled: true
   name: plex-route
   hostnames:
-    - api.k8s.local
+  - api.k8s.local
   pathPrefix: /
   parentRefs:
-    - name: gateway
-      namespace: gateway
-      sectionName: http
-    - name: gateway
-      namespace: gateway
-      sectionName: https
+  - name: gateway
+    namespace: gateway
+    sectionName: http
+  - name: gateway
+    namespace: gateway
+    sectionName: https
 env:
   IDP_REPO_ROOT: /workspace
   PLEX_ARGOCD_SERVER: http://argocd-server.argocd.svc.cluster.local
