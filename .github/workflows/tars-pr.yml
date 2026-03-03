@@ -27,6 +27,8 @@ jobs:
     name: Reconcile
     if: github.event.action != 'closed'
     runs-on: ubuntu-latest
+    env:
+      HAS_CASE_AUTOMERGE_TOKEN: ${{ secrets.CASE_AUTOMERGE_TOKEN != '' && 'true' || 'false' }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -286,13 +288,13 @@ jobs:
           } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Auto-merge token warning
-        if: ${{ steps.auto_merge.outputs.merged == 'true' && secrets.CASE_AUTOMERGE_TOKEN == '' }}
+        if: ${{ steps.auto_merge.outputs.merged == 'true' && env.HAS_CASE_AUTOMERGE_TOKEN == 'false' }}
         run: |
           set -euo pipefail
           echo "::warning title=CASE auto-merge token fallback::Using GITHUB_TOKEN for merge can suppress downstream push workflows. Configure secrets.CASE_AUTOMERGE_TOKEN to avoid this."
 
       - name: Trigger tars-build fallback
-        if: ${{ steps.auto_merge.outputs.merged == 'true' && secrets.CASE_AUTOMERGE_TOKEN == '' }}
+        if: ${{ steps.auto_merge.outputs.merged == 'true' && env.HAS_CASE_AUTOMERGE_TOKEN == 'false' }}
         uses: actions/github-script@v7
         with:
           script: |
