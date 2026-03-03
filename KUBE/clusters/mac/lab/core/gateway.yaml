@@ -1,19 +1,16 @@
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: gateway-traefik
+  name: gateway
   namespace: argocd
   annotations:
-    argocd.argoproj.io/compare-result: "false"
-    argocd.argoproj.io/sync-wave: "3"
+    argocd.argoproj.io/sync-wave: "4"
 spec:
   project: default
   source:
     repoURL: https://github.com/calavelas/ENDR.git
     targetRevision: main
     path: KUBE/clusters/mac/lab/gateway
-    directory:
-      include: "*traefik*.yaml"
   destination:
     server: https://kubernetes.default.svc
     namespace: gateway
@@ -24,6 +21,10 @@ spec:
         - /status
     - group: gateway.networking.k8s.io
       kind: HTTPRoute
+      jsonPointers:
+        - /status
+    - group: gateway.networking.k8s.io
+      kind: GatewayClass
       jsonPointers:
         - /status
   syncPolicy:
