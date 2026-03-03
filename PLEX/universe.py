@@ -11,7 +11,12 @@ from urllib import error, request
 from pydantic import BaseModel
 
 from TARS.config.loader import load_all_configs
-from TARS.config.paths import cluster_apps_repo_dir, cluster_root_app_repo_dir
+from TARS.config.paths import (
+    DEFAULT_ARGOCD_NAMESPACE,
+    active_cluster_name,
+    cluster_apps_repo_dir,
+    cluster_root_app_repo_dir,
+)
 
 DEFAULT_ARGOCD_SERVER = "https://argocd.k8s.local"
 
@@ -133,7 +138,7 @@ def _build_config_universe() -> PlexUniverse:
             PlexNode(
                 name=name,
                 kind="core",
-                namespace=idp_config.config.cluster.argocdNamespace,
+                namespace=DEFAULT_ARGOCD_NAMESPACE,
                 syncStatus="Unknown",
                 healthStatus="Unknown",
                 sourcePath=_core_source_path(name, root_repo_dir, bootstrap_app_name),
@@ -164,7 +169,7 @@ def _build_config_universe() -> PlexUniverse:
     return PlexUniverse(
         generatedAt=datetime.now(tz=UTC).isoformat(),
         dataSource="config",
-        galaxyName=idp_config.config.cluster.name,
+        galaxyName=active_cluster_name(idp_config),
         clusterPath=root_repo_dir,
         servicesPath=apps_repo_dir,
         warnings=[
@@ -282,7 +287,7 @@ def build_plex_universe() -> PlexUniverse:
                     app,
                     kind="core",
                     orbit_band=0,
-                    fallback_namespace=idp_config.config.cluster.argocdNamespace,
+                    fallback_namespace=DEFAULT_ARGOCD_NAMESPACE,
                 )
             )
         else:
@@ -291,7 +296,7 @@ def build_plex_universe() -> PlexUniverse:
                 PlexNode(
                     name=name,
                     kind="core",
-                    namespace=idp_config.config.cluster.argocdNamespace,
+                    namespace=DEFAULT_ARGOCD_NAMESPACE,
                     syncStatus="Missing",
                     healthStatus="Missing",
                     sourcePath=_core_source_path(name, root_repo_dir, bootstrap_app_name),
@@ -336,7 +341,7 @@ def build_plex_universe() -> PlexUniverse:
     return PlexUniverse(
         generatedAt=datetime.now(tz=UTC).isoformat(),
         dataSource="argocd",
-        galaxyName=idp_config.config.cluster.name,
+        galaxyName=active_cluster_name(idp_config),
         clusterPath=root_repo_dir,
         servicesPath=apps_repo_dir,
         warnings=warnings,

@@ -9,7 +9,12 @@ from jinja2 import Environment, StrictUndefined
 from pydantic import BaseModel, Field, model_validator
 
 from TARS.config.loader import load_all_configs
-from TARS.config.paths import service_app_manifest_repo_path
+from TARS.config.paths import (
+    DEFAULT_ARGOCD_NAMESPACE,
+    DEFAULT_SERVICE_NAMESPACE,
+    active_cluster_alias,
+    service_app_manifest_repo_path,
+)
 from TARS.config.models import (
     IDPConfig,
     IngressConfig,
@@ -26,7 +31,7 @@ class CreateServiceRequest(BaseModel):
     image: str | None = None
     port: int = Field(default=8080, ge=1, le=65535)
     namespace: str | None = None
-    deployTo: list[str] = Field(default_factory=lambda: ["local"])
+    deployTo: list[str] = Field(default_factory=list)
     env: dict[str, str] = Field(default_factory=dict)
     resources: ResourceConfig | None = None
     ingressEnabled: bool = False
@@ -91,13 +96,14 @@ def _build_overrides(request: CreateServiceRequest) -> ServiceOverrides:
 def _build_service_entry(
     request: CreateServiceRequest,
     namespace: str,
+    deploy_to: list[str],
     service_template_name: str,
     gitops_template_name: str,
 ) -> ServiceEntry:
     return ServiceEntry(
         name=request.name,
         namespace=namespace,
-        deployTo=request.deployTo,
+        deployTo=deploy_to,
         generator={
             "service": {"template": service_template_name},
             "gitops": {"template": gitops_template_name},
@@ -276,7 +282,7 @@ def render_scaffold_for_service(
         service,
         idp_config.config.git.owner,
         idp_config.config.git.repo,
-        idp_config.config.cluster.argocdNamespace,
+        DEFAULT_ARGOCD_NAMESPACE,
     )
 
     stage_service_dir = staging_root / "service"
@@ -314,15 +320,21 @@ def create_service(request: CreateServiceRequest) -> CreateServiceResponse:
         if existing.name == request.name:
             raise ValueError(f"service already exists in SVCS.yaml: {request.name}")
 
-    namespace = request.namespace or idp_config.config.cluster.namespaceDefault
-    service = _build_service_entry(request, namespace, service_template_name, gitops_template_name)
+    namespace = request.namespace or DEFAULT_SERVICE_NAMESPACE
+    deploy_to = request.deployTo if request.deployTo else [active_cluster_alias(idp_config)]
+    service = _build_service_entry(
+        request,
+        namespace,
+        deploy_to,
+        service_template_name,
+        gitops_template_name,
+    )
 
-    unknown_environments = [
-        environment for environment in service.deployTo if environment not in idp_config.config.environments
-    ]
-    if unknown_environments:
+    known_clusters = set(idp_config.config.clusters.keys())
+    unknown_clusters = [cluster for cluster in service.deployTo if cluster not in known_clusters]
+    if unknown_clusters:
         raise ValueError(
-            f"unknown deployTo environments: {', '.join(sorted(set(unknown_environments)))}"
+            f"unknown deployTo clusters: {', '.join(sorted(set(unknown_clusters)))}"
         )
 
     staging_root = repo_root / ".idp" / "staging" / service.name

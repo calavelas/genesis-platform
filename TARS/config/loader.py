@@ -160,7 +160,7 @@ def validate_consistency(
     errors.extend(service_template_errors)
     errors.extend(gitops_template_errors)
 
-    environments = set(idp_config.config.environments)
+    cluster_aliases = set(idp_config.config.clusters.keys())
     service_names: set[str] = set()
 
     for service in services_config.services:
@@ -170,9 +170,9 @@ def validate_consistency(
             service_names.add(service.name)
 
         for environment in service.deployTo:
-            if environment not in environments:
+            if environment not in cluster_aliases:
                 errors.append(
-                    f"service '{service.name}' deployTo contains unknown environment '{environment}'"
+                    f"service '{service.name}' deployTo contains unknown cluster '{environment}'"
                 )
 
         if service.generator.service.template not in service_template_names:

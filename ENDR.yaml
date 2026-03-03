@@ -1,39 +1,18 @@
 projectName: endr
 owners:
   - calavelas
-
 config:
   git:
     provider: github
     owner: calavelas
     repo: ENDR
     defaultBranch: main
-  cluster:
-    name: genesis-local
-    namespaceDefault: default
-    argocdNamespace: argocd
-    gitopsClusterDir: mac/lab
-    gitopsAppsDir: services
-    gitopsRootAppDir: core
+  activeCluster: mac-lab
   clusters:
-    local:
-      name: genesis-local
-      namespaceDefault: default
-      argocdNamespace: argocd
-      gitopsClusterDir: mac/lab
-      gitopsAppsDir: services
-      gitopsRootAppDir: core
+    mac-lab:
+      name: mac-lab
     gcp-dev:
       name: gcp-dev
-      namespaceDefault: default
-      argocdNamespace: argocd
-      gitopsClusterDir: gcp/dev
-      gitopsAppsDir: services
-      gitopsRootAppDir: core
-  environments:
-    - local
-    - gcp-dev
-
 templates:
   extends: []
   service:

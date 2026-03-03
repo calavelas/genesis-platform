@@ -14,49 +14,35 @@ class GitConfig(BaseModel):
 
 class ClusterConfig(BaseModel):
     name: str
-    namespaceDefault: str = Field(default="default")
-    argocdNamespace: str = Field(default="argocd")
-    gitopsClusterDir: str = Field(default="local")
-    gitopsAppsDir: str = Field(default="apps")
-    gitopsRootAppDir: str = Field(default="core")
 
-    @field_validator("gitopsClusterDir", "gitopsAppsDir", "gitopsRootAppDir")
+    @field_validator("name")
     @classmethod
-    def validate_gitops_path(cls, value: str) -> str:
+    def validate_cluster_name(cls, value: str) -> str:
         normalized = value.strip()
         if not normalized:
             raise ValueError("must not be blank")
-        if normalized.startswith("/") or normalized.endswith("/") or "\\" in normalized:
-            raise ValueError("must be a relative path using '/' separators")
-        segments = normalized.split("/")
-        for segment in segments:
-            if segment in {"", ".", ".."}:
-                raise ValueError("path contains invalid segment")
-            if not K8S_DNS_LABEL_RE.match(segment):
-                raise ValueError("each path segment must match Kubernetes DNS label format")
+        if not K8S_DNS_LABEL_RE.match(normalized):
+            raise ValueError("must match Kubernetes DNS label format")
         return normalized
 
 
 class RuntimeConfig(BaseModel):
     git: GitConfig
-    cluster: ClusterConfig
+    activeCluster: str
     clusters: dict[str, ClusterConfig] = Field(default_factory=dict)
-    environments: list[str] = Field(default_factory=lambda: ["local"])
 
     @model_validator(mode="after")
     def validate_cluster_aliases(self) -> "RuntimeConfig":
         if not self.clusters:
-            return self
+            raise ValueError("config.clusters must include at least one cluster")
 
         for alias in self.clusters:
             if not K8S_DNS_LABEL_RE.match(alias):
                 raise ValueError(f"cluster alias '{alias}' must match Kubernetes DNS label format")
 
-        unknown_environments = sorted({env for env in self.environments if env not in self.clusters})
-        if unknown_environments:
+        if self.activeCluster not in self.clusters:
             raise ValueError(
-                "environments missing in config.clusters: "
-                + ", ".join(unknown_environments)
+                f"activeCluster '{self.activeCluster}' is missing in config.clusters"
             )
         return self
 
@@ -173,10 +159,10 @@ class ServiceEntry(BaseModel):
     @classmethod
     def validate_deploy_targets(cls, value: list[str]) -> list[str]:
         if not value:
-            raise ValueError("must include at least one environment")
+            raise ValueError("must include at least one cluster alias")
         for environment in value:
             if not environment.strip():
-                raise ValueError("environment values must not be blank")
+                raise ValueError("cluster alias values must not be blank")
         return value
 
 

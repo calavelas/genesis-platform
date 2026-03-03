@@ -73,15 +73,14 @@ Related:
   - `projectName`
   - `owners`
   - `config.git` (GitHub org/repo/defaultBranch)
-  - `config.cluster` (active cluster defaults used by generation)
+  - `config.activeCluster` (active cluster alias used by generation)
   - `config.clusters` (cluster alias map for multi-cluster expansion)
-  - `config.environments` (environment aliases, e.g. `local`, `gcp-dev`)
   - `templates.extends` (optional baseline config extension)
   - `templates.service[]` (name + path/url)
   - `templates.gitops[]` (name + path/url)
 - `SVCS.yaml` should include:
   - `services[]`
-  - each service has `name`, `namespace`, `deployTo` (one or more environments)
+  - each service has `name`, `namespace`, `deployTo` (one or more cluster aliases)
   - `generator.service.template`
   - `generator.gitops.template`
   - optional overrides for image, port, resources, ingress, env

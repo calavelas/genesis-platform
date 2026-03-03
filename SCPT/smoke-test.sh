@@ -9,6 +9,7 @@ ARGOCD_NAMESPACE="${ARGOCD_NAMESPACE:-argocd}"
 BOOTSTRAP_APP_NAME="${BOOTSTRAP_APP_NAME:-lab}"
 TRAEFIK_NAMESPACE="${TRAEFIK_NAMESPACE:-plt-traefik}"
 GATEWAY_NAMESPACE="${GATEWAY_NAMESPACE:-plt-gateway}"
+DEFAULT_DEPLOY_TARGET="${DEFAULT_DEPLOY_TARGET:-mac-lab}"
 API_PORT="${API_PORT:-18000}"
 
 API_DIR="$ROOT_DIR/ENDR"
@@ -49,7 +50,7 @@ setup_python_env() {
 
   log "installing idp-api dependencies"
   "${VENV_DIR}/bin/python" -m pip install --upgrade pip >/dev/null
-  "${VENV_DIR}/bin/pip" install -e "${API_DIR}" >/dev/null
+  "${VENV_DIR}/bin/python" -m pip install -e "${API_DIR}" >/dev/null
 }
 
 validate_config_loader() {
@@ -135,8 +136,8 @@ run_api_checks() {
 
   local smoke_service="smoke-svc-$(date +%H%M%S)"
   local payload
-  payload="$(cat <<EOF
-{"name":"${smoke_service}","namespace":"demo","image":"ghcr.io/example/${smoke_service}:0.1.0","port":8080,"deployTo":["local"],"dryRun":true}
+payload="$(cat <<EOF
+{"name":"${smoke_service}","namespace":"demo","image":"ghcr.io/example/${smoke_service}:0.1.0","port":8080,"deployTo":["${DEFAULT_DEPLOY_TARGET}"],"dryRun":true}
 EOF
 )"
 
