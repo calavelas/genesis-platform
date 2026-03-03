@@ -49,3 +49,15 @@ services:
   overrides:
     gateway:
       enabled: true
+- name: case-e2e-build-trigger-test
+  namespace: demo
+  environments:
+  - mac-lab
+  generator:
+    service:
+      template: python-fastapi
+    gitops:
+      template: helm-service
+  overrides:
+    gateway:
+      enabled: true
