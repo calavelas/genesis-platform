@@ -59,7 +59,8 @@ export function ArgoEmbedPanel({ embedUrl }: ArgoEmbedPanelProps) {
       </div>
 
       <p className="embed-note">
-        If the frame is blocked, ensure ArgoCD allows frame embedding from <code>localhost:3000</code>.
+        If the frame is blocked, ensure ArgoCD allows frame embedding from <code>127.0.0.1:3000</code> and{" "}
+        <code>localhost:3000</code>.
       </p>
     </section>
   );

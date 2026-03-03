@@ -207,6 +207,8 @@ configs:
     # -- Enable local admin user
     ## Ref: https://argo-cd.readthedocs.io/en/latest/faq/#how-to-disable-admin-user
     admin.enabled: true
+    # -- Enable anonymous access. Combined with default RBAC role below for read-only UI access.
+    users.anonymous.enabled: "true"
 
     # -- Timeout to discover if a new manifests version got published to the repository
     timeout.reconciliation: 180s
@@ -425,6 +427,9 @@ configs:
     # If false, it is expected the configmap will be created by something else.
     create: true
     server.insecure: true
+    # Allow embedding ArgoCD in CASE and service detail pages.
+    server.x.frame.options: ""
+    server.content.security.policy: "frame-ancestors 'self' http://127.0.0.1:3000 http://localhost:3000"
     # -- Annotations to be added to the argocd-cmd-params-cm ConfigMap
     annotations: {}
 
@@ -445,7 +450,7 @@ configs:
 
     # -- The name of the default role which Argo CD will falls back to, when authorizing API requests (optional).
     # If omitted or empty, users may be still be able to login, but will see no apps, projects, etc...
-    policy.default: ''
+    policy.default: 'role:readonly'
 
     # -- File containing user-defined policies and role definitions.
     # @default -- `''` (See [values.yaml])

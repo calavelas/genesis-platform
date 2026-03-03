@@ -27,7 +27,7 @@ export interface PlexUniverse {
 }
 
 const FALLBACK_API = "http://127.0.0.1:8000";
-const FALLBACK_EMBED_URL = "https://127.0.0.1:18443/applications";
+const FALLBACK_EMBED_URL = "https://argocd.k8s.local/applications";
 const FALLBACK_GITHUB_REPO_URL = "https://github.com/calavelas/ENDR";
 const FALLBACK_GITHUB_BRANCH = "main";
 
@@ -41,7 +41,11 @@ export function resolveApiBase(): string {
 }
 
 export function resolveArgoEmbedUrl(): string {
-  const value = process.env.CASE_ARGOCD_EMBED_URL || process.env.NEXT_PUBLIC_ARGOCD_EMBED_URL || FALLBACK_EMBED_URL;
+  const value =
+    process.env.CASE_ARGOCD_EMBED_URL ||
+    process.env.NEXT_PUBLIC_CASE_ARGOCD_EMBED_URL ||
+    process.env.NEXT_PUBLIC_ARGOCD_EMBED_URL ||
+    FALLBACK_EMBED_URL;
   return value.trim() || FALLBACK_EMBED_URL;
 }
 

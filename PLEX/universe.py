@@ -13,6 +13,8 @@ from pydantic import BaseModel
 from TARS.config.loader import load_all_configs
 from TARS.config.paths import cluster_apps_repo_dir, cluster_root_app_repo_dir
 
+DEFAULT_ARGOCD_SERVER = "https://argocd.k8s.local"
+
 
 class PlexNode(BaseModel):
     name: str
@@ -173,7 +175,8 @@ def _build_config_universe() -> PlexUniverse:
 def _fetch_argocd_apps(argocd_server: str, argocd_token: str, verify_tls: bool) -> dict[str, Any]:
     endpoint = f"{argocd_server.rstrip('/')}/api/v1/applications"
     req = request.Request(endpoint, method="GET")
-    req.add_header("Authorization", f"Bearer {argocd_token}")
+    if argocd_token:
+        req.add_header("Authorization", f"Bearer {argocd_token}")
     req.add_header("Accept", "application/json")
 
     context: ssl.SSLContext | None = None
@@ -237,11 +240,11 @@ def build_plex_universe() -> PlexUniverse:
     core_names = _discover_core_app_names(paths.repoRoot, root_repo_dir)
     warnings: list[str] = []
 
-    argocd_server = os.getenv("PLEX_ARGOCD_SERVER", "").strip()
+    argocd_server = os.getenv("PLEX_ARGOCD_SERVER", DEFAULT_ARGOCD_SERVER).strip()
     argocd_token = os.getenv("PLEX_ARGOCD_TOKEN", "").strip()
     verify_tls = os.getenv("PLEX_ARGOCD_VERIFY_TLS", "true").strip().lower() not in {"0", "false", "no"}
 
-    if not argocd_server or not argocd_token:
+    if not argocd_server:
         return _build_config_universe()
 
     try:

@@ -1,0 +1,59 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: argocd-instance
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/compare-result: "false"
+    argocd.argoproj.io/sync-wave: "-2"
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/calavelas/ENDR.git
+    targetRevision: main
+    path: KUBE/platforms/argocd/helm
+    helm:
+      releaseName: argocd
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: argocd
+  ignoreDifferences:
+    - group: apiextensions.k8s.io
+      kind: CustomResourceDefinition
+      jsonPointers:
+        - /metadata/annotations/kubectl.kubernetes.io~1last-applied-configuration
+    - group: apps
+      kind: Deployment
+      name: argocd-application-controller
+      jsonPointers:
+        - /spec/template/metadata/labels/argocd.argoproj.io~1instance
+    - group: apps
+      kind: Deployment
+      name: argocd-applicationset-controller
+      jsonPointers:
+        - /spec/template/metadata/labels/argocd.argoproj.io~1instance
+    - group: apps
+      kind: Deployment
+      name: argocd-repo-server
+      jsonPointers:
+        - /spec/template/metadata/labels/argocd.argoproj.io~1instance
+    - group: apps
+      kind: Deployment
+      name: argocd-server
+      jsonPointers:
+        - /spec/template/metadata/labels/argocd.argoproj.io~1instance
+    - group: apps
+      kind: StatefulSet
+      name: argocd-application-controller
+      jsonPointers:
+        - /spec/template/metadata/labels/argocd.argoproj.io~1instance
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - PrunePropagationPolicy=foreground
+      - RespectIgnoreDifferences=true
+      - ServerSideDiff=true
+      - ServerSideApply=true

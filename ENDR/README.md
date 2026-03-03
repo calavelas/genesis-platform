@@ -31,8 +31,8 @@ Current endpoints:
 - `POST /api/services` (supports `dryRun`)
 
 Optional env for live ArgoCD-backed portal data:
-- `PLEX_ARGOCD_SERVER`
-- `PLEX_ARGOCD_TOKEN`
+- `PLEX_ARGOCD_SERVER` (defaults to `https://argocd.k8s.local`)
+- `PLEX_ARGOCD_TOKEN` (optional when ArgoCD anonymous read-only is enabled)
 - `PLEX_ARGOCD_VERIFY_TLS` (`true` by default)
 
 Required env for PR creation (`dryRun=false`):

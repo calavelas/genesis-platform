@@ -20,8 +20,8 @@ Notes:
 - `config`: fallback snapshot derived from `ENDR.yaml` and `SVCS.yaml`.
 
 Environment variables:
-- `PLEX_ARGOCD_SERVER`: ArgoCD base URL, for example `https://argocd.example.com`
-- `PLEX_ARGOCD_TOKEN`: ArgoCD API token used by backend
+- `PLEX_ARGOCD_SERVER`: ArgoCD base URL, defaults to `https://argocd.k8s.local`
+- `PLEX_ARGOCD_TOKEN`: optional ArgoCD API token (not required if anonymous read-only is enabled)
 - `PLEX_ARGOCD_VERIFY_TLS`: `true` (default) or `false` for self-signed/local TLS
 
 Security model:
