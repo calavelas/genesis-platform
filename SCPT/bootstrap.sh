@@ -9,6 +9,7 @@ ARGOCD_HELM_CHART="${ARGOCD_HELM_CHART:-$ROOT_DIR/KUBE/platforms/argocd/helm}"
 ARGOCD_VALUES="${ARGOCD_VALUES:-$ARGOCD_HELM_CHART/values.yaml}"
 BOOTSTRAP_APP_FILE="${BOOTSTRAP_APP_FILE:-$ROOT_DIR/KUBE/clusters/space/space.yaml}"
 BOOTSTRAP_RESET_ARGOCD="${BOOTSTRAP_RESET_ARGOCD:-true}"
+CLEANUP_LEGACY_INGRESS_NGINX="${CLEANUP_LEGACY_INGRESS_NGINX:-true}"
 
 log() {
   echo "[bootstrap] $*"
@@ -38,6 +39,20 @@ ensure_cluster() {
   fi
 
   kubectl config use-context "k3d-${CLUSTER_NAME}" >/dev/null
+}
+
+cleanup_legacy_ingress_nginx() {
+  if [[ "${CLEANUP_LEGACY_INGRESS_NGINX}" != "true" ]]; then
+    return 0
+  fi
+
+  if kubectl get namespace ingress-nginx >/dev/null 2>&1; then
+    log "removing legacy ingress-nginx to free host ports 80/443 for Traefik"
+    if helm -n ingress-nginx ls --short 2>/dev/null | grep -qx "ingress-nginx"; then
+      helm -n ingress-nginx uninstall ingress-nginx >/dev/null || true
+    fi
+    kubectl delete namespace ingress-nginx --wait=true --timeout=5m >/dev/null || true
+  fi
 }
 
 install_argocd_from_chart() {
@@ -133,6 +148,7 @@ main() {
   require_cmd helm
 
   ensure_cluster
+  cleanup_legacy_ingress_nginx
   install_argocd_from_chart
   apply_argocd_bootstrap
   print_summary

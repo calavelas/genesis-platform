@@ -16,6 +16,11 @@ FRONTEND_PORT="${FRONTEND_PORT:-3000}"
 ARGOCD_NAMESPACE="${ARGOCD_NAMESPACE:-argocd}"
 ARGOCD_LOCAL_PORT="${ARGOCD_LOCAL_PORT:-18443}"
 ARGOCD_REMOTE_PORT="${ARGOCD_REMOTE_PORT:-443}"
+ARGOCD_BASE_URL="${ARGOCD_BASE_URL:-https://127.0.0.1:${ARGOCD_LOCAL_PORT}}"
+PLEX_ARGOCD_SERVER="${PLEX_ARGOCD_SERVER:-${ARGOCD_BASE_URL}}"
+PLEX_ARGOCD_TOKEN="${PLEX_ARGOCD_TOKEN:-}"
+PLEX_ARGOCD_VERIFY_TLS="${PLEX_ARGOCD_VERIFY_TLS:-false}"
+CASE_ARGOCD_EMBED_URL="${CASE_ARGOCD_EMBED_URL:-${ARGOCD_BASE_URL}/applications}"
 ENDR_API_URL="${ENDR_API_URL:-http://${BACKEND_HOST}:${BACKEND_PORT}}"
 
 BACKEND_PID_FILE="${RUNTIME_DIR}/backend.pid"
@@ -166,13 +171,13 @@ start_all() {
 
   start_process \
     "backend" \
-    "cd '${REPO_ROOT}' && exec '${REPO_ROOT}/ENDR/.venv/bin/python' -m uvicorn app.main:app --reload --host '${BACKEND_HOST}' --port '${BACKEND_PORT}' --app-dir ENDR" \
+    "cd '${REPO_ROOT}' && export PLEX_ARGOCD_SERVER='${PLEX_ARGOCD_SERVER}' && export PLEX_ARGOCD_TOKEN='${PLEX_ARGOCD_TOKEN}' && export PLEX_ARGOCD_VERIFY_TLS='${PLEX_ARGOCD_VERIFY_TLS}' && exec '${REPO_ROOT}/ENDR/.venv/bin/python' -m uvicorn app.main:app --reload --host '${BACKEND_HOST}' --port '${BACKEND_PORT}' --app-dir ENDR" \
     "${BACKEND_PID_FILE}" \
     "${BACKEND_LOG_FILE}"
 
   start_process \
     "frontend" \
-    "cd '${REPO_ROOT}/CASE' && export ENDR_API_URL='${ENDR_API_URL}' && exec npm run dev -- --hostname '${FRONTEND_HOST}' --port '${FRONTEND_PORT}'" \
+    "cd '${REPO_ROOT}/CASE' && export ENDR_API_URL='${ENDR_API_URL}' && export CASE_ARGOCD_EMBED_URL='${CASE_ARGOCD_EMBED_URL}' && exec npm run dev -- --hostname '${FRONTEND_HOST}' --port '${FRONTEND_PORT}'" \
     "${FRONTEND_PID_FILE}" \
     "${FRONTEND_LOG_FILE}"
 
@@ -195,6 +200,8 @@ status_all() {
   print_status_line "backend" "${BACKEND_PID_FILE}" "-> http://${BACKEND_HOST}:${BACKEND_PORT}"
   print_status_line "frontend" "${FRONTEND_PID_FILE}" "-> http://${FRONTEND_HOST}:${FRONTEND_PORT}"
   print_status_line "argocd-port-forward" "${ARGOCD_PID_FILE}" "-> https://127.0.0.1:${ARGOCD_LOCAL_PORT}"
+  echo "[dev-stack] plex-argocd-server: ${PLEX_ARGOCD_SERVER}"
+  echo "[dev-stack] case-argocd-embed: ${CASE_ARGOCD_EMBED_URL}"
 }
 
 main() {

@@ -25,6 +25,7 @@ Bootstrap environment overrides:
 - `ARGOCD_NAMESPACE`
 - `ARGOCD_HELM_CHART`, `ARGOCD_VALUES`, `BOOTSTRAP_APP_FILE`
 - `BOOTSTRAP_RESET_ARGOCD` (default `true`; set `false` to keep existing `argocd` namespace)
+- `CLEANUP_LEGACY_INGRESS_NGINX` (default `true`; removes old ingress-nginx to avoid 80/443 conflicts)
 
 ## Local Stack Init Script
 Use `dev-stack.sh` to run the full local stack:
@@ -44,3 +45,6 @@ Environment overrides:
 - `FRONTEND_HOST`, `FRONTEND_PORT`
 - `ENDR_API_URL`
 - `ARGOCD_NAMESPACE`, `ARGOCD_LOCAL_PORT`, `ARGOCD_REMOTE_PORT`
+- `ARGOCD_BASE_URL` (default `https://127.0.0.1:18443`)
+- `PLEX_ARGOCD_SERVER`, `PLEX_ARGOCD_VERIFY_TLS`
+- `CASE_ARGOCD_EMBED_URL`
