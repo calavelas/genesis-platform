@@ -124,8 +124,8 @@ print_summary() {
 
 GitOps bootstrap:
 - Root application: ${BOOTSTRAP_APP_NAME}
-- Core child applications: platform, services
-- Platform applications: argocd-instance, traefik, gateway
+- Core child applications: platform, services, gateway
+- Platform applications: argocd-instance, traefik
 
 URLs:
 - ArgoCD (gateway):  https://argocd.k8s.local

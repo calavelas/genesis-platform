@@ -5,13 +5,13 @@ metadata:
   namespace: argocd
   annotations:
     argocd.argoproj.io/compare-result: "false"
-    argocd.argoproj.io/sync-wave: "1"
+    argocd.argoproj.io/sync-wave: "3"
 spec:
   project: default
   source:
     repoURL: https://github.com/calavelas/ENDR.git
     targetRevision: main
-    path: KUBE/clusters/mac/lab/platform/gateway
+    path: KUBE/clusters/mac/lab/gateway
   destination:
     server: https://kubernetes.default.svc
     namespace: gateway

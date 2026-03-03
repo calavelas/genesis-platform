@@ -9,14 +9,14 @@ spec:
     - name: http
       port: 80
       protocol: HTTP
-      hostname: "*.mac.lab"
+      hostname: "*.k8s.local"
       allowedRoutes:
         namespaces:
           from: All
     - name: https
       port: 443
       protocol: HTTPS
-      hostname: "*.mac.lab"
+      hostname: "*.k8s.local"
       tls:
         mode: Terminate
         certificateRefs:
