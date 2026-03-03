@@ -38,3 +38,15 @@ services:
     ingress:
       enabled: true
       host: test2.svcs.calavelas.net
+- name: test3
+  namespace: demo2
+  environments:
+  - mac-lab
+  generator:
+    service:
+      template: python-fastapi
+    gitops:
+      template: helm-service2
+  overrides:
+    gateway:
+      enabled: true
