@@ -1,7 +1,7 @@
 replicaCount: 1
 image:
   repository: calavelas/case
-  tag: 78af5ae
+  tag: 079e21c
   pullPolicy: IfNotPresent
 service:
   type: ClusterIP
