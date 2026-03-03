@@ -25,3 +25,15 @@ services:
     gateway:
       enabled: true
     image: calavelas/cooper:d0dd719
+- name: miller
+  namespace: demo
+  environments:
+  - mac-lab
+  generator:
+    service:
+      template: python-fastapi
+    gitops:
+      template: helm-service
+  overrides:
+    gateway:
+      enabled: true
