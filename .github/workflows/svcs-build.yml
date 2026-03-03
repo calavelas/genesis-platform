@@ -10,6 +10,7 @@ on:
       - 'ENDR/TARS/TARS.py'
   workflow_run:
     workflows:
+      - TARS - Generate and Reconcile
       - TARS - Init and Reconcile
     types:
       - completed
