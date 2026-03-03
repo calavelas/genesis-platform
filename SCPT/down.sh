@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-CLUSTER_NAME="${CLUSTER_NAME:-genesis-local}"
+CLUSTER_NAME="${CLUSTER_NAME:-mac-lab}"
 
 if ! command -v k3d >/dev/null 2>&1; then
   echo "[down] missing required command: k3d"

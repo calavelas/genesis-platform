@@ -23,7 +23,8 @@ make -f SCPT/Makefile dev-stop
 Bootstrap environment overrides:
 - `CLUSTER_NAME`, `K3D_API_PORT`
 - `ARGOCD_NAMESPACE`
-- `ARGOCD_HELM_CHART`, `ARGOCD_VALUES`, `BOOTSTRAP_APP_FILE`
+- `ARGOCD_HELM_CHART`, `ARGOCD_VALUES`
+- Bootstrap app file is fixed to `KUBE/clusters/mac/lab/core.yaml`
 - `BOOTSTRAP_RESET_ARGOCD` (default `true`; set `false` to keep existing `argocd` namespace)
 - `CLEANUP_LEGACY_INGRESS_NGINX` (default `true`; removes old ingress-nginx to avoid 80/443 conflicts)
 

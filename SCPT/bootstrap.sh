@@ -2,12 +2,12 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-CLUSTER_NAME="${CLUSTER_NAME:-genesis-local}"
+CLUSTER_NAME="${CLUSTER_NAME:-mac-lab}"
 K3D_API_PORT="${K3D_API_PORT:-6550}"
 ARGOCD_NAMESPACE="${ARGOCD_NAMESPACE:-argocd}"
 ARGOCD_HELM_CHART="${ARGOCD_HELM_CHART:-$ROOT_DIR/KUBE/platforms/argocd/helm}"
 ARGOCD_VALUES="${ARGOCD_VALUES:-$ARGOCD_HELM_CHART/values.yaml}"
-BOOTSTRAP_APP_FILE="${BOOTSTRAP_APP_FILE:-$ROOT_DIR/KUBE/clusters/mac/lab/core.yaml}"
+BOOTSTRAP_APP_FILE="$ROOT_DIR/KUBE/clusters/mac/lab/core.yaml"
 BOOTSTRAP_APP_NAME="${BOOTSTRAP_APP_NAME:-lab}"
 BOOTSTRAP_RESET_ARGOCD="${BOOTSTRAP_RESET_ARGOCD:-true}"
 CLEANUP_LEGACY_INGRESS_NGINX="${CLEANUP_LEGACY_INGRESS_NGINX:-true}"
@@ -104,6 +104,7 @@ apply_argocd_bootstrap() {
     exit 1
   fi
 
+  log "using bootstrap application file: $BOOTSTRAP_APP_FILE"
   log "applying ArgoCD bootstrap application"
   kubectl apply -f "$BOOTSTRAP_APP_FILE" >/dev/null
 }

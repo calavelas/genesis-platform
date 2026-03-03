@@ -1,6 +1,6 @@
 .PHONY: bootstrap up down port-forward port-forward-argocd port-forward-grafana port-forward-prometheus api web validate-config smoke-test smoke-test-api smoke-test-platform svcs-check svcs-sync dev-start dev-stop dev-restart dev-status dev-logs
 
-CLUSTER_NAME ?= genesis-local
+CLUSTER_NAME ?= mac-lab
 MAKEFILE_DIR := $(patsubst %/,%,$(dir $(abspath $(lastword $(MAKEFILE_LIST)))))
 REPO_ROOT := $(abspath $(MAKEFILE_DIR)/..)
 

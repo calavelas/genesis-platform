@@ -4,7 +4,7 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 MODE="${1:-all}"
 
-CLUSTER_NAME="${CLUSTER_NAME:-genesis-local}"
+CLUSTER_NAME="${CLUSTER_NAME:-mac-lab}"
 ARGOCD_NAMESPACE="${ARGOCD_NAMESPACE:-argocd}"
 BOOTSTRAP_APP_NAME="${BOOTSTRAP_APP_NAME:-lab}"
 TRAEFIK_NAMESPACE="${TRAEFIK_NAMESPACE:-plt-traefik}"
