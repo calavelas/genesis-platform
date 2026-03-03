@@ -7,7 +7,8 @@ K3D_API_PORT="${K3D_API_PORT:-6550}"
 ARGOCD_NAMESPACE="${ARGOCD_NAMESPACE:-argocd}"
 ARGOCD_HELM_CHART="${ARGOCD_HELM_CHART:-$ROOT_DIR/KUBE/platforms/argocd/helm}"
 ARGOCD_VALUES="${ARGOCD_VALUES:-$ARGOCD_HELM_CHART/values.yaml}"
-BOOTSTRAP_APP_FILE="${BOOTSTRAP_APP_FILE:-$ROOT_DIR/KUBE/clusters/space/space.yaml}"
+BOOTSTRAP_APP_FILE="${BOOTSTRAP_APP_FILE:-$ROOT_DIR/KUBE/clusters/mac/lab/core.yaml}"
+BOOTSTRAP_APP_NAME="${BOOTSTRAP_APP_NAME:-lab}"
 BOOTSTRAP_RESET_ARGOCD="${BOOTSTRAP_RESET_ARGOCD:-true}"
 CLEANUP_LEGACY_INGRESS_NGINX="${CLEANUP_LEGACY_INGRESS_NGINX:-true}"
 
@@ -121,8 +122,9 @@ print_summary() {
 [bootstrap] cluster context: k3d-${CLUSTER_NAME}
 
 GitOps bootstrap:
-- Root application: space
-- Platform applications: argocd-instance, traefik, plt-gateway
+- Root application: ${BOOTSTRAP_APP_NAME}
+- Core child applications: platform, services
+- Platform applications: argocd-instance, traefik, gateway
 
 URLs:
 - ArgoCD (gateway):  https://argocd.k8s.local

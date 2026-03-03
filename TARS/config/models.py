@@ -22,21 +22,43 @@ class ClusterConfig(BaseModel):
 
     @field_validator("gitopsClusterDir", "gitopsAppsDir", "gitopsRootAppDir")
     @classmethod
-    def validate_gitops_path_segment(cls, value: str) -> str:
+    def validate_gitops_path(cls, value: str) -> str:
         normalized = value.strip()
         if not normalized:
             raise ValueError("must not be blank")
-        if "/" in normalized or "\\" in normalized:
-            raise ValueError("must be a single path segment")
-        if not K8S_DNS_LABEL_RE.match(normalized):
-            raise ValueError("must match Kubernetes DNS label format")
+        if normalized.startswith("/") or normalized.endswith("/") or "\\" in normalized:
+            raise ValueError("must be a relative path using '/' separators")
+        segments = normalized.split("/")
+        for segment in segments:
+            if segment in {"", ".", ".."}:
+                raise ValueError("path contains invalid segment")
+            if not K8S_DNS_LABEL_RE.match(segment):
+                raise ValueError("each path segment must match Kubernetes DNS label format")
         return normalized
 
 
 class RuntimeConfig(BaseModel):
     git: GitConfig
     cluster: ClusterConfig
+    clusters: dict[str, ClusterConfig] = Field(default_factory=dict)
     environments: list[str] = Field(default_factory=lambda: ["local"])
+
+    @model_validator(mode="after")
+    def validate_cluster_aliases(self) -> "RuntimeConfig":
+        if not self.clusters:
+            return self
+
+        for alias in self.clusters:
+            if not K8S_DNS_LABEL_RE.match(alias):
+                raise ValueError(f"cluster alias '{alias}' must match Kubernetes DNS label format")
+
+        unknown_environments = sorted({env for env in self.environments if env not in self.clusters})
+        if unknown_environments:
+            raise ValueError(
+                "environments missing in config.clusters: "
+                + ", ".join(unknown_environments)
+            )
+        return self
 
 
 class TemplateRef(BaseModel):

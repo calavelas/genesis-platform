@@ -3,6 +3,7 @@ services:
   namespace: demo
   deployTo:
   - local
+  - gcp-dev
   generator:
     service:
       template: python-fastapi
@@ -14,6 +15,7 @@ services:
   namespace: demo
   deployTo:
   - local
+  - gcp-dev
   generator:
     service:
       template: python-fastapi
@@ -25,6 +27,7 @@ services:
   namespace: demo
   deployTo:
   - local
+  - gcp-dev
   generator:
     service:
       template: python-fastapi
@@ -36,6 +39,7 @@ services:
   namespace: demo
   deployTo:
   - local
+  - gcp-dev
   generator:
     service:
       template: python-fastapi

@@ -36,14 +36,14 @@ For each service in `SVCS.yaml`, it renders expected outputs from:
 
 Then it compares expected content with repo files:
 - `SVCS/<name>/**`
-- `KUBE/clusters/space/gargantua/<name>.yaml`
+- `KUBE/clusters/mac/lab/services/<name>.yaml`
 
 If file is missing or content differs, it is marked for reconcile and included in PR changes.
 
 Service removal handling:
 - If a service exists in repo-managed paths but is removed from `SVCS.yaml`, `TARS/TARS.py svcs-check` marks it as removed and stages file deletions.
 - Deletions include:
-  - `KUBE/clusters/space/gargantua/<service>.yaml`
+  - `KUBE/clusters/mac/lab/services/<service>.yaml`
   - `SVCS/<service>/**`
 - The generated PR will remove these files so ArgoCD prunes the app in GitOps flow.
 

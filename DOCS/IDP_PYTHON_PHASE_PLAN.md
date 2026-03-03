@@ -46,9 +46,14 @@ Related:
   KUBE/
     argocd/
     clusters/
-      space/
-        core/
-        gargantua/
+      mac/
+        lab/
+          core/
+          platform/
+          services/
+      gcp/
+        dev/
+        prd/
     policies/
     monitoring/
   SVCS/
@@ -68,14 +73,15 @@ Related:
   - `projectName`
   - `owners`
   - `config.git` (GitHub org/repo/defaultBranch)
-  - `config.cluster` (local cluster name, namespace defaults)
-  - `config.environments` (for V1: `local`)
+  - `config.cluster` (active cluster defaults used by generation)
+  - `config.clusters` (cluster alias map for multi-cluster expansion)
+  - `config.environments` (environment aliases, e.g. `local`, `gcp-dev`)
   - `templates.extends` (optional baseline config extension)
   - `templates.service[]` (name + path/url)
   - `templates.gitops[]` (name + path/url)
 - `SVCS.yaml` should include:
   - `services[]`
-  - each service has `name`, `namespace`, `deployTo`
+  - each service has `name`, `namespace`, `deployTo` (one or more environments)
   - `generator.service.template`
   - `generator.gitops.template`
   - optional overrides for image, port, resources, ingress, env
@@ -102,8 +108,8 @@ Deliverables:
 - `SCPT/bootstrap.sh`
 - `SCPT/Makefile` targets: `bootstrap`, `down`, `port-forward`
 - ArgoCD install and root app bootstrap:
-  - `KUBE/clusters/space/space.yaml`
-  - `KUBE/clusters/space/core/*`
+  - `KUBE/clusters/mac/lab/core.yaml`
+  - `KUBE/clusters/mac/lab/core/*`
 - ingress controller install and documented URLs
 
 Exit criteria:

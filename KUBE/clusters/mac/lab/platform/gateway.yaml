@@ -11,10 +11,10 @@ spec:
   source:
     repoURL: https://github.com/calavelas/ENDR.git
     targetRevision: main
-    path: KUBE/clusters/space/endurance/gateways
+    path: KUBE/clusters/mac/lab/platform/gateways
   destination:
     server: https://kubernetes.default.svc
-    namespace: gateway
+    namespace: plt-gateway
   ignoreDifferences:
     - group: gateway.networking.k8s.io
       kind: Gateway

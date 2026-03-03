@@ -167,18 +167,18 @@ function buildFallbackUniverse(reason: string): PlexUniverse {
   return {
     generatedAt: new Date().toISOString(),
     dataSource: "fallback",
-    galaxyName: "gargantua",
-    clusterPath: "KUBE/clusters/space/core",
-    servicesPath: "KUBE/clusters/space/gargantua",
+    galaxyName: "lab",
+    clusterPath: "KUBE/clusters/mac/lab/core",
+    servicesPath: "KUBE/clusters/mac/lab/services",
     warnings: [reason],
     coreApps: [
       {
-        name: "gargantua",
+        name: "lab",
         kind: "core",
         namespace: "argocd",
         syncStatus: "Unknown",
         healthStatus: "Unknown",
-        sourcePath: "KUBE/clusters/space/core",
+        sourcePath: "KUBE/clusters/mac/lab/core.yaml",
         revision: "main",
         deployedAt: null,
         imageTag: null,

@@ -6,6 +6,7 @@ MODE="${1:-all}"
 
 CLUSTER_NAME="${CLUSTER_NAME:-genesis-local}"
 ARGOCD_NAMESPACE="${ARGOCD_NAMESPACE:-argocd}"
+BOOTSTRAP_APP_NAME="${BOOTSTRAP_APP_NAME:-lab}"
 TRAEFIK_NAMESPACE="${TRAEFIK_NAMESPACE:-plt-traefik}"
 GATEWAY_NAMESPACE="${GATEWAY_NAMESPACE:-plt-gateway}"
 API_PORT="${API_PORT:-18000}"
@@ -167,10 +168,10 @@ run_platform_checks() {
   kubectl -n "${ARGOCD_NAMESPACE}" rollout status deploy/argocd-server --timeout=10m >/dev/null
 
   log "verifying ArgoCD bootstrap application"
-  kubectl -n "${ARGOCD_NAMESPACE}" get application space >/dev/null
+  kubectl -n "${ARGOCD_NAMESPACE}" get application "${BOOTSTRAP_APP_NAME}" >/dev/null
 
   log "checking platform applications (non-blocking)"
-  for app in argocd-instance traefik plt-gateway; do
+  for app in platform services argocd-instance traefik gateway; do
     if kubectl -n "${ARGOCD_NAMESPACE}" get application "${app}" >/dev/null 2>&1; then
       log "found application: ${app}"
     else

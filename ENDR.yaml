@@ -12,11 +12,27 @@ config:
     name: genesis-local
     namespaceDefault: default
     argocdNamespace: argocd
-    gitopsClusterDir: space
-    gitopsAppsDir: gargantua
+    gitopsClusterDir: mac/lab
+    gitopsAppsDir: services
     gitopsRootAppDir: core
+  clusters:
+    local:
+      name: genesis-local
+      namespaceDefault: default
+      argocdNamespace: argocd
+      gitopsClusterDir: mac/lab
+      gitopsAppsDir: services
+      gitopsRootAppDir: core
+    gcp-dev:
+      name: gcp-dev
+      namespaceDefault: default
+      argocdNamespace: argocd
+      gitopsClusterDir: gcp/dev
+      gitopsAppsDir: services
+      gitopsRootAppDir: core
   environments:
     - local
+    - gcp-dev
 
 templates:
   extends: []

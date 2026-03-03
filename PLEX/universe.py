@@ -85,7 +85,7 @@ def _discover_core_app_names(repo_root: str, root_repo_dir: str) -> list[str]:
     cluster_abs = root_abs.parent
 
     discovered: list[str] = []
-    bootstrap_manifest = cluster_abs / "space.yaml"
+    bootstrap_manifest = cluster_abs / f"{root_abs.name}.yaml"
     if bootstrap_manifest.exists():
         bootstrap_name = _read_application_name(bootstrap_manifest)
         if bootstrap_name:
@@ -98,9 +98,6 @@ def _discover_core_app_names(repo_root: str, root_repo_dir: str) -> list[str]:
             if app_name:
                 discovered.append(app_name)
 
-    if "gargantua" not in discovered:
-        discovered.append("gargantua")
-
     unique: list[str] = []
     seen: set[str] = set()
     for name in discovered:
@@ -111,10 +108,15 @@ def _discover_core_app_names(repo_root: str, root_repo_dir: str) -> list[str]:
     return unique
 
 
-def _core_source_path(name: str, root_repo_dir: str) -> str:
+def _bootstrap_source_path(root_repo_dir: str) -> str:
+    root_path = Path(root_repo_dir)
+    return (root_path.parent / f"{root_path.name}.yaml").as_posix()
+
+
+def _core_source_path(name: str, root_repo_dir: str, bootstrap_app_name: str | None) -> str:
     cluster_dir = Path(root_repo_dir).parent.as_posix()
-    if name == "space":
-        return f"{cluster_dir}/space.yaml"
+    if bootstrap_app_name and name == bootstrap_app_name:
+        return f"{cluster_dir}/{Path(root_repo_dir).name}.yaml"
     return root_repo_dir
 
 
@@ -123,6 +125,7 @@ def _build_config_universe() -> PlexUniverse:
     apps_repo_dir = cluster_apps_repo_dir(idp_config)
     root_repo_dir = cluster_root_app_repo_dir(idp_config)
     core_names = _discover_core_app_names(paths.repoRoot, root_repo_dir)
+    bootstrap_app_name = _read_application_name(Path(paths.repoRoot) / Path(_bootstrap_source_path(root_repo_dir)))
 
     core_apps: list[PlexNode] = []
     for index, name in enumerate(core_names, start=1):
@@ -133,7 +136,7 @@ def _build_config_universe() -> PlexUniverse:
                 namespace=idp_config.config.cluster.argocdNamespace,
                 syncStatus="Unknown",
                 healthStatus="Unknown",
-                sourcePath=_core_source_path(name, root_repo_dir),
+                sourcePath=_core_source_path(name, root_repo_dir, bootstrap_app_name),
                 revision="main",
                 deployedAt=None,
                 imageTag=None,
@@ -161,7 +164,7 @@ def _build_config_universe() -> PlexUniverse:
     return PlexUniverse(
         generatedAt=datetime.now(tz=UTC).isoformat(),
         dataSource="config",
-        galaxyName="gargantua",
+        galaxyName=idp_config.config.cluster.name,
         clusterPath=root_repo_dir,
         servicesPath=apps_repo_dir,
         warnings=[
@@ -238,6 +241,7 @@ def build_plex_universe() -> PlexUniverse:
     apps_repo_dir = cluster_apps_repo_dir(idp_config)
     root_repo_dir = cluster_root_app_repo_dir(idp_config)
     core_names = _discover_core_app_names(paths.repoRoot, root_repo_dir)
+    bootstrap_app_name = _read_application_name(Path(paths.repoRoot) / Path(_bootstrap_source_path(root_repo_dir)))
     warnings: list[str] = []
 
     argocd_server = os.getenv("PLEX_ARGOCD_SERVER", DEFAULT_ARGOCD_SERVER).strip()
@@ -290,7 +294,7 @@ def build_plex_universe() -> PlexUniverse:
                     namespace=idp_config.config.cluster.argocdNamespace,
                     syncStatus="Missing",
                     healthStatus="Missing",
-                    sourcePath=_core_source_path(name, root_repo_dir),
+                    sourcePath=_core_source_path(name, root_repo_dir, bootstrap_app_name),
                     revision="main",
                     deployedAt=None,
                     imageTag=None,
@@ -332,7 +336,7 @@ def build_plex_universe() -> PlexUniverse:
     return PlexUniverse(
         generatedAt=datetime.now(tz=UTC).isoformat(),
         dataSource="argocd",
-        galaxyName="gargantua",
+        galaxyName=idp_config.config.cluster.name,
         clusterPath=root_repo_dir,
         servicesPath=apps_repo_dir,
         warnings=warnings,
