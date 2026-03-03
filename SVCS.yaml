@@ -11,8 +11,9 @@ services:
   overrides:
     gateway:
       enabled: true
+    image: calavelas/sample:7d952b8
 - name: cooper
-  namespace: demo2
+  namespace: demo
   environments:
   - mac-lab
   generator:
@@ -23,7 +24,6 @@ services:
   overrides:
     gateway:
       enabled: true
-    image: calavelas/cooper:474037d
 - name: mann
   namespace: demo
   environments:
@@ -36,6 +36,7 @@ services:
   overrides:
     gateway:
       enabled: true
+    image: calavelas/mann:474037d
 - name: miller
   namespace: demo
   environments:
@@ -48,4 +49,4 @@ services:
   overrides:
     gateway:
       enabled: true
-    image: calavelas/mann:474037d
+

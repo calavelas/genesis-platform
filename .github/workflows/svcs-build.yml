@@ -14,6 +14,8 @@ on:
       - TARS - Init and Reconcile
     types:
       - completed
+    branches:
+      - main
   workflow_dispatch:
 
 permissions:
