@@ -16,7 +16,7 @@ spec:
       releaseName: traefik
   destination:
     server: https://kubernetes.default.svc
-    namespace: plt-traefik
+    namespace: traefik
   syncPolicy:
     automated:
       prune: true

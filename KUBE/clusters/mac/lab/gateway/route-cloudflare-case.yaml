@@ -5,7 +5,9 @@ metadata:
   namespace: endr
 spec:
   parentRefs:
-    - name: gateway-cloudflare
+    - group: gateway.networking.k8s.io
+      kind: Gateway
+      name: gateway-cloudflare
       namespace: gateway
   hostnames:
     - "case.calavelas.net"
@@ -15,5 +17,8 @@ spec:
             type: PathPrefix
             value: /
       backendRefs:
-        - name: case
+        - group: ""
+          kind: Service
+          name: case
           port: 80
+          weight: 1

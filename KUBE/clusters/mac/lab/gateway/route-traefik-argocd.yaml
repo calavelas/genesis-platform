@@ -5,10 +5,14 @@ metadata:
   namespace: argocd
 spec:
   parentRefs:
-    - name: gateway-traefik
+    - group: gateway.networking.k8s.io
+      kind: Gateway
+      name: gateway-traefik
       namespace: gateway
       sectionName: http
-    - name: gateway-traefik
+    - group: gateway.networking.k8s.io
+      kind: Gateway
+      name: gateway-traefik
       namespace: gateway
       sectionName: https
   hostnames:
@@ -19,5 +23,8 @@ spec:
             type: PathPrefix
             value: /
       backendRefs:
-        - name: argocd-server
+        - group: ""
+          kind: Service
+          name: argocd-server
           port: 80
+          weight: 1
