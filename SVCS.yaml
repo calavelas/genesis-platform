@@ -62,3 +62,4 @@ services:
   overrides:
     gateway:
       enabled: true
+    image: calavelas/edmund:b9ea917
