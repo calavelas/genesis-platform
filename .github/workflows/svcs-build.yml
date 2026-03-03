@@ -1,13 +1,6 @@
 name: SVCS - Build and Deploy SVCS
 
 on:
-  workflow_run:
-    workflows:
-      - TARS - Reconcile and Update
-    types:
-      - completed
-    branches:
-      - main
   workflow_dispatch:
 
 permissions:
@@ -16,11 +9,6 @@ permissions:
 jobs:
   services-change-discovery:
     name: Services Change Discovery
-    if: >
-      (github.event_name == 'workflow_run' &&
-      github.event.workflow_run.conclusion == 'success' &&
-      github.event.workflow_run.head_branch == 'main') ||
-      github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     outputs:
       matrix: ${{ steps.discover.outputs.matrix }}
@@ -33,7 +21,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-          ref: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || 'main' }}
+          ref: main
 
       - uses: actions/setup-python@v5
         with:
@@ -54,11 +42,7 @@ jobs:
         run: |
           set -euo pipefail
 
-          if [ "${{ github.event_name }}" = "workflow_run" ]; then
-            AFTER="${{ github.event.workflow_run.head_sha }}"
-          else
-            AFTER="$(git rev-parse HEAD)"
-          fi
+          AFTER="$(git rev-parse HEAD)"
           BEFORE=""
           if git rev-parse "${AFTER}^" >/dev/null 2>&1; then
             BEFORE="$(git rev-parse "${AFTER}^")"
