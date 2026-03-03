@@ -1,0 +1,111 @@
+name: TARS - Post Merge Orchestrator
+
+on:
+  pull_request:
+    types:
+      - closed
+
+permissions:
+  actions: write
+  contents: write
+  pull-requests: read
+
+jobs:
+  post-merge:
+    name: Post Merge Actions
+    if: >
+      github.event.pull_request.merged == true &&
+      github.event.pull_request.base.ref == 'main' &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      (
+        startsWith(github.event.pull_request.title, 'TARS :') ||
+        startsWith(github.event.pull_request.title, 'CASE : Adding service :') ||
+        startsWith(github.event.pull_request.head.ref, 'idp/tars-svcs-check') ||
+        startsWith(github.event.pull_request.head.ref, 'case/')
+      )
+    runs-on: ubuntu-latest
+    steps:
+      - name: Delete merged source branch
+        if: ${{ vars.TARS_DELETE_SOURCE_BRANCH_ON_MERGE != 'false' }}
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const branch = context.payload.pull_request.head.ref;
+            try {
+              await github.rest.git.deleteRef({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                ref: `heads/${branch}`,
+              });
+              core.notice(`Deleted merged branch: ${branch}`);
+            } catch (error) {
+              if (error && (error.status === 404 || error.status === 422)) {
+                core.notice(`Merged branch already absent: ${branch}`);
+                return;
+              }
+              throw error;
+            }
+
+      - name: Skip branch deletion (flag disabled)
+        if: ${{ vars.TARS_DELETE_SOURCE_BRANCH_ON_MERGE == 'false' }}
+        run: echo "Skipping branch deletion because vars.TARS_DELETE_SOURCE_BRANCH_ON_MERGE=false"
+
+      - name: Ensure generate reconcile runs for merged PR
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const { owner, repo } = context.repo;
+            const pr = context.payload.pull_request;
+            const mergeCommitSha = pr.merge_commit_sha;
+            const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+            if (!mergeCommitSha) {
+              core.notice(`PR #${pr.number} has no merge commit SHA; skipping generate dispatch.`);
+              return;
+            }
+
+            let matchedPushRun = null;
+            for (let attempt = 0; attempt < 20; attempt += 1) {
+              const runs = await github.rest.actions.listWorkflowRuns({
+                owner,
+                repo,
+                workflow_id: "tars-build.yml",
+                branch: "main",
+                event: "push",
+                per_page: 50,
+              });
+              matchedPushRun = runs.data.workflow_runs.find((run) => run.head_sha === mergeCommitSha) || null;
+              if (!matchedPushRun) {
+                await sleep(2000);
+                continue;
+              }
+              if (matchedPushRun.status !== "completed") {
+                await sleep(2000);
+                continue;
+              }
+              if (matchedPushRun.conclusion === "success") {
+                core.notice(
+                  `Generate reconcile already covered by push run #${matchedPushRun.id} for ${mergeCommitSha}.`
+                );
+                return;
+              }
+              core.notice(
+                `Push run #${matchedPushRun.id} for ${mergeCommitSha} concluded=${matchedPushRun.conclusion}; dispatching fallback generate run.`
+              );
+              break;
+            }
+
+            if (!matchedPushRun) {
+              core.notice(`No push-based TARS run found for merge commit ${mergeCommitSha}; dispatching generate run.`);
+            }
+
+            await github.rest.actions.createWorkflowDispatch({
+              owner,
+              repo,
+              workflow_id: "tars-build.yml",
+              ref: "main",
+              inputs: {
+                write_worktree: "true",
+              },
+            });
+            core.notice(`Dispatched TARS generate workflow_dispatch for merged PR #${pr.number}.`);
