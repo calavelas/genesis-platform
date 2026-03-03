@@ -3,7 +3,7 @@ name: SVCS - Build and Deploy SVCS
 on:
   workflow_run:
     workflows:
-      - TARS - Generate and Reconcile
+      - TARS - Reconcile and Update
     types:
       - completed
     branches:
