@@ -1,21 +1,21 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: endr-api
+  name: plex
   labels:
-    app.kubernetes.io/name: endr-api
+    app.kubernetes.io/name: plex
 spec:
   replicas: {{ .Values.replicaCount }}
   selector:
     matchLabels:
-      app.kubernetes.io/name: endr-api
+      app.kubernetes.io/name: plex
   template:
     metadata:
       labels:
-        app.kubernetes.io/name: endr-api
+        app.kubernetes.io/name: plex
     spec:
       containers:
-        - name: endr-api
+        - name: plex
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           ports:
@@ -23,8 +23,19 @@ spec:
               containerPort: {{ .Values.service.targetPort }}
           env:
 {{- range $name, $value := .Values.env }}
+{{- if and $.Values.argocdTokenSecret.enabled (eq $name "PLEX_ARGOCD_TOKEN") }}
+{{- else }}
             - name: {{ $name }}
               value: {{ $value | quote }}
+{{- end }}
+{{- end }}
+{{- if .Values.argocdTokenSecret.enabled }}
+            - name: PLEX_ARGOCD_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.argocdTokenSecret.name | quote }}
+                  key: {{ .Values.argocdTokenSecret.key | quote }}
+                  optional: {{ .Values.argocdTokenSecret.optional }}
 {{- end }}
           readinessProbe:
             httpGet:

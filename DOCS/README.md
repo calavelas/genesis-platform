@@ -40,7 +40,7 @@
 - On merge to `main`, workflow `svcs-build.yml` detects changed source services, auto-sets `git-<sha>` image tags, builds images from `SVCS/<name>/Dockerfile`, pushes to Docker Hub, and persists updated tags back to repo.
 - Workflow `svcs-build.yml` also supports manual `workflow_dispatch` to publish all services in one run.
 - Workflow `svcs-tagged.yml` runs on Git tags in format `servicename.Vx.x.x`, builds image from `SVCS/servicename`, and publishes Docker tag `Vx.x.x`.
-- On PR/main changes for ENDR frontend/backend paths, workflow `platform-build.yml` builds `endr-api` + `endr-case`; PRs validate build only, and `main` pushes images then updates `ENDR/PLEX/chart/values.yaml` and `ENDR/CASE/chart/values.yaml` with the new `git-<sha>` tag.
+- On PR/main changes for ENDR frontend/backend paths, workflow `platform-build.yml` builds `plex` + `case`; PRs validate build only, and `main` pushes images then updates `ENDR/PLEX/chart/values.yaml` and `ENDR/CASE/chart/values.yaml` with the new short commit SHA tag (`<sha7>`).
 
 Optional branch cleanup toggle:
 - Set repo variable `TARS_DELETE_SOURCE_BRANCH_ON_MERGE=false` to keep merged TARS branches.

@@ -1,13 +1,13 @@
 apiVersion: v1
 kind: Service
 metadata:
-  name: endr-case
+  name: case
   labels:
-    app.kubernetes.io/name: endr-case
+    app.kubernetes.io/name: case
 spec:
   type: {{ .Values.service.type }}
   selector:
-    app.kubernetes.io/name: endr-case
+    app.kubernetes.io/name: case
   ports:
     - name: http
       port: {{ .Values.service.port }}

@@ -8,5 +8,6 @@ This folder represents the `mac/lab` cluster desired state.
 ## Subfolders
 - `core/`: app-of-apps definitions consumed by bootstrap (`platform` + `services` + `gateway`).
 - `platform/`: platform child apps (ArgoCD, Traefik).
-- `gateway/`: Gateway API resources (Gateway, HTTPRoutes, TLS secret), including routes for ArgoCD, ENDR API, and ENDR UI.
+- `gateway/`: shared Gateway API resources (Gateway, TLS secret, and shared routes like ArgoCD).
+- Application-specific HTTPRoutes (for example `plex` and `case`) are owned in each app Helm chart.
 - `services/`: one ArgoCD child `Application` manifest per service.

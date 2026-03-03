@@ -1,17 +1,34 @@
 replicaCount: 1
 image:
-  repository: calavelas/endr-api
-  tag: git-6ec51f5
+  repository: calavelas/plex
+  tag: 6ec51f5
   pullPolicy: IfNotPresent
 service:
   type: ClusterIP
   port: 80
   targetPort: 8000
+httpRoute:
+  enabled: true
+  name: plex-route
+  hostnames:
+    - api.k8s.local
+  pathPrefix: /
+  parentRefs:
+    - name: gateway
+      namespace: gateway
+      sectionName: http
+    - name: gateway
+      namespace: gateway
+      sectionName: https
 env:
   IDP_REPO_ROOT: /workspace
-  PLEX_ARGOCD_SERVER: https://argocd.k8s.local
-  PLEX_ARGOCD_TOKEN: ''
+  PLEX_ARGOCD_SERVER: http://argocd-server.argocd.svc.cluster.local
   PLEX_ARGOCD_VERIFY_TLS: 'false'
+argocdTokenSecret:
+  enabled: false
+  name: plex-argocd-token
+  key: token
+  optional: false
 resources:
   requests:
     cpu: 100m

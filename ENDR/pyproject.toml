@@ -1,5 +1,5 @@
 [project]
-name = "endr-api"
+name = "plex"
 version = "0.1.0"
 description = "GitOps IDP backend API"
 readme = "README.md"

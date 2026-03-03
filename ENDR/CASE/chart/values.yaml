@@ -1,15 +1,28 @@
 replicaCount: 1
 image:
-  repository: calavelas/endr-case
-  tag: git-6ec51f5
+  repository: calavelas/case
+  tag: 6ec51f5
   pullPolicy: IfNotPresent
 service:
   type: ClusterIP
   port: 80
   targetPort: 3000
+httpRoute:
+  enabled: true
+  name: case-route
+  hostnames:
+    - case.k8s.local
+  pathPrefix: /
+  parentRefs:
+    - name: gateway
+      namespace: gateway
+      sectionName: http
+    - name: gateway
+      namespace: gateway
+      sectionName: https
 env:
-  ENDR_API_URL: http://endr-api.endr.svc.cluster.local
-  NEXT_PUBLIC_ENDR_API_URL: http://endr-api.endr.svc.cluster.local
+  ENDR_API_URL: http://plex.endr.svc.cluster.local
+  NEXT_PUBLIC_ENDR_API_URL: http://plex.endr.svc.cluster.local
   CASE_ARGOCD_EMBED_URL: https://argocd.k8s.local/applications
   NEXT_PUBLIC_CASE_ARGOCD_EMBED_URL: https://argocd.k8s.local/applications
   CASE_GITHUB_REPO_URL: https://github.com/calavelas/ENDR

@@ -51,7 +51,7 @@ jobs:
         run: |
           set -euo pipefail
           SHA="${{ github.sha }}"
-          echo "tag=git-${SHA:0:7}" >> "$GITHUB_OUTPUT"
+          echo "tag=${SHA:0:7}" >> "$GITHUB_OUTPUT"
 
       - name: Compute push mode
         id: mode
@@ -76,12 +76,12 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - name: endr-api
-            image_name: endr-api
+          - name: plex
+            image_name: plex
             context: .
             dockerfile: ENDR/PLEX/Dockerfile
-          - name: endr-case
-            image_name: endr-case
+          - name: case
+            image_name: case
             context: ENDR/CASE
             dockerfile: ENDR/CASE/Dockerfile
     steps:
@@ -165,8 +165,8 @@ jobs:
           owner = os.environ["IMAGE_OWNER"].strip()
           tag = os.environ["IMAGE_TAG"].strip()
           charts = {
-            Path("ENDR/PLEX/chart/values.yaml"): "endr-api",
-            Path("ENDR/CASE/chart/values.yaml"): "endr-case",
+            Path("ENDR/PLEX/chart/values.yaml"): "plex",
+            Path("ENDR/CASE/chart/values.yaml"): "case",
           }
 
           for chart_path, image_name in charts.items():
@@ -187,7 +187,7 @@ jobs:
             echo "No chart updates to commit."
             exit 0
           fi
-          git commit -m "ENDR : Persist image tag ${{ needs.meta.outputs.tag }} for endr-api/endr-case"
+          git commit -m "ENDR : Persist image tag ${{ needs.meta.outputs.tag }} for plex/case"
           git push origin HEAD:${{ github.ref_name }}
 
       - name: Summary
