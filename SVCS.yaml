@@ -12,3 +12,15 @@ services:
     gateway:
       enabled: true
     image: calavelas/sample:7d952b8
+- name: cooper
+  namespace: demo
+  environments:
+  - mac-lab
+  generator:
+    service:
+      template: python-fastapi
+    gitops:
+      template: helm-service
+  overrides:
+    gateway:
+      enabled: true
