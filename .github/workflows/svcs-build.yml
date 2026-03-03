@@ -127,61 +127,41 @@ jobs:
               echo 'count=0'
             } >> "$GITHUB_OUTPUT"
           else
-            python3 - <<'PY'
-            import json
-            import os
-            import subprocess
-            import sys
+            RAW_JSON="$(mktemp)"
+            FILTERED_JSON="$(mktemp)"
 
-            detected = {
-                item.strip()
-                for item in os.environ.get("DETECTED_SERVICES", "").split(",")
-                if item.strip()
-            }
+            python3 ENDR/TARS/TARS.py discover-changed-services \
+              --repo-root . \
+              --before "${BEFORE_SHA}" \
+              --after "${AFTER_SHA}" \
+              --registry dockerhub \
+              --image-owner "${DOCKERHUB_OWNER}" > "${RAW_JSON}"
 
-            cmd = [
-                sys.executable,
-                "ENDR/TARS/TARS.py",
-                "discover-changed-services",
-                "--repo-root",
-                ".",
-                "--before",
-                os.environ.get("BEFORE_SHA", ""),
-                "--after",
-                os.environ.get("AFTER_SHA", ""),
-                "--registry",
-                "dockerhub",
-                "--image-owner",
-                os.environ["DOCKERHUB_OWNER"],
-            ]
+            python3 -c 'import json, os, sys; p=json.load(sys.stdin); d={item.strip() for item in os.environ.get("DETECTED_SERVICES", "").split(",") if item.strip()}; include=[item for item in p.get("include", []) if str(item.get("service", "")).strip() in d]; skipped=p.get("skipped", []); json.dump({"include": include, "skipped": skipped}, sys.stdout)' < "${RAW_JSON}" > "${FILTERED_JSON}"
 
-            child_env = os.environ.copy()
-            child_env.pop("GITHUB_OUTPUT", None)
-            completed = subprocess.run(  # noqa: S603
-                cmd,
-                check=True,
-                capture_output=True,
-                text=True,
-                env=child_env,
-            )
-            payload = json.loads((completed.stdout or "{}").strip() or "{}")
-            include = [
-                item
-                for item in payload.get("include", [])
-                if str(item.get("service", "")).strip() in detected
-            ]
-            skipped = payload.get("skipped", [])
-            print(json.dumps({"include": include, "skipped": skipped}, indent=2))
+            python3 -c 'import json, sys; p=json.load(sys.stdin); print(json.dumps(p, indent=2))' < "${FILTERED_JSON}"
 
-            with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as handle:
-                handle.write(f"matrix={json.dumps({'include': include}, separators=(',', ':'))}\n")
-                handle.write(f"has_services={'true' if include else 'false'}\n")
-                handle.write(f"count={len(include)}\n")
-                if skipped:
-                    handle.write("skipped<<EOF\n")
-                    handle.write("\n".join(skipped))
-                    handle.write("\nEOF\n")
-            PY
+            MATRIX_JSON="$(python3 -c 'import json, sys; p=json.load(sys.stdin); print(json.dumps({"include": p.get("include", [])}, separators=(",", ":")))' < "${FILTERED_JSON}")"
+            COUNT="$(python3 -c 'import json, sys; p=json.load(sys.stdin); print(len(p.get("include", [])))' < "${FILTERED_JSON}")"
+            HAS_SERVICES="false"
+            if [ "${COUNT}" -gt 0 ]; then
+              HAS_SERVICES="true"
+            fi
+
+            {
+              echo "matrix=${MATRIX_JSON}"
+              echo "has_services=${HAS_SERVICES}"
+              echo "count=${COUNT}"
+            } >> "$GITHUB_OUTPUT"
+
+            SKIPPED_LINES="$(python3 -c 'import json, sys; p=json.load(sys.stdin); print(\"\\n\".join(p.get(\"skipped\", [])))' < "${FILTERED_JSON}")"
+            if [ -n "${SKIPPED_LINES}" ]; then
+              {
+                echo 'skipped<<EOF'
+                printf '%s\n' "${SKIPPED_LINES}"
+                echo 'EOF'
+              } >> "$GITHUB_OUTPUT"
+            fi
           fi
 
       - name: Summary
