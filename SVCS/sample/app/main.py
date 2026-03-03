@@ -4,6 +4,7 @@ from fastapi.responses import HTMLResponse
 SERVICE_NAME = "sample"
 app = FastAPI(title=SERVICE_NAME)
 
+print(f"Starting {SERVICE_NAME} service...")
 
 @app.get("/", response_class=HTMLResponse)
 def landing() -> str:
