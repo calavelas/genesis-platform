@@ -41,3 +41,5 @@ services:
       template: python-fastapi
     gitops:
       template: helm-service
+  overrides:
+    image: calavelas/cooper:git-9f01619
