@@ -37,3 +37,4 @@ services:
   overrides:
     gateway:
       enabled: true
+    image: calavelas/cooper:0eb22a5
