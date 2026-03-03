@@ -1,13 +1,13 @@
-services: []
-# - name: sample
-#   namespace: demo
-#   environments:
-#   - mac-lab
-#   generator:
-#     service:
-#       template: python-fastapi
-#     gitops:
-#       template: helm-service
-#   overrides:
-#     gateway:
-#       enabled: true
+services: 
+- name: sample
+  namespace: demo
+  environments:
+  - mac-lab
+  generator:
+    service:
+      template: python-fastapi
+    gitops:
+      template: helm-service
+  overrides:
+    gateway:
+      enabled: true
