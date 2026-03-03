@@ -1,27 +1,27 @@
 apiVersion: gateway.networking.k8s.io/v1
 kind: Gateway
 metadata:
-  name: k8s-gateway
-  namespace: plt-gateway
+  name: gateway
+  namespace: gateway
 spec:
   gatewayClassName: traefik
   listeners:
     - name: http
       port: 80
       protocol: HTTP
-      hostname: "*.k8s.local"
+      hostname: "*.mac.lab"
       allowedRoutes:
         namespaces:
           from: All
     - name: https
       port: 443
       protocol: HTTPS
-      hostname: "*.k8s.local"
+      hostname: "*.mac.lab"
       tls:
         mode: Terminate
         certificateRefs:
           - kind: Secret
-            name: k8s-local-tls
+            name: gateway-tls
       allowedRoutes:
         namespaces:
           from: All

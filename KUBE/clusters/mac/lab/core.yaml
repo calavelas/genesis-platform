@@ -1,14 +1,14 @@
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: lab
+  name: core
   namespace: argocd
 spec:
   project: default
   source:
     repoURL: https://github.com/calavelas/ENDR.git
     targetRevision: main
-    path: KUBE/clusters/mac/lab/core
+    path: KUBE/clusters/space/core
   destination:
     server: https://kubernetes.default.svc
     namespace: argocd
