@@ -8,3 +8,18 @@ services:
       template: python-fastapi
     gitops:
       template: helm-service
+- name: test
+  namespace: default
+  deployTo:
+  - mac-lab
+  generator:
+    service:
+      template: python-fastapi
+    gitops:
+      template: helm-service
+  overrides:
+    port: 8080
+    env: {}
+    ingress:
+      enabled: true
+      host: test.svcs.calavelas.net
