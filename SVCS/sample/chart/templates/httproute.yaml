@@ -19,6 +19,14 @@ spec:
         - path:
             type: PathPrefix
             value: {{ .Values.httpRoute.pathPrefix | quote }}
+{{- if .Values.httpRoute.stripPrefix }}
+      filters:
+        - type: URLRewrite
+          urlRewrite:
+            path:
+              type: ReplacePrefixMatch
+              replacePrefixMatch: "/"
+{{- end }}
       backendRefs:
         - group: ""
           kind: Service

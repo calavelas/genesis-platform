@@ -7,5 +7,5 @@ Helm resources generated:
 - `Service`
 - `HTTPRoute` (when `httpRoute.enabled=true` in chart values)
 
-Default `HTTPRoute` hostname is:
-- `<service-name>.svcs.calavelas.net`
+Default `HTTPRoute` public URL is:
+- `svcs.calavelas.net/<service-name>`

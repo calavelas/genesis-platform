@@ -16,11 +16,12 @@ resources:
 
 httpRoute:
   enabled: {{ gateway_enabled }}
-  pathPrefix: /
+  pathPrefix: {{ gateway_path_prefix }}
+  stripPrefix: true
   parentRefs:
     - group: gateway.networking.k8s.io
       kind: Gateway
       name: gateway-cloudflare
       namespace: gateway
   hostnames:
-    - {{ gateway_hostname }}
+    - {{ gateway_host }}

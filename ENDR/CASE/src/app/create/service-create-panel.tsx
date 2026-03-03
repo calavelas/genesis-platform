@@ -41,7 +41,7 @@ function buildServicePagePath(serviceName: string): string {
 }
 
 function buildServicePublicUrl(serviceName: string): string {
-  return `https://${serviceName.trim()}.svcs.calavelas.net`;
+  return `https://svcs.calavelas.net/${encodeURIComponent(serviceName.trim())}`;
 }
 
 function readErrorMessage(payload: unknown): string {
@@ -204,7 +204,7 @@ export function CreateServicePanel() {
     <section className="panel create-panel">
       <h2>Create Service</h2>
       <p className="embed-note">
-        This updates only <code>SVCS.yaml</code>; gateway hostname is always generated as <code>&lt;service&gt;.svcs.calavelas.net</code>.
+        This updates only <code>SVCS.yaml</code>; gateway route is always generated as <code>svcs.calavelas.net/&lt;service&gt;</code>.
       </p>
 
       <form className="create-form" onSubmit={onSubmit}>

@@ -138,7 +138,8 @@ def _build_template_context(
         limits_memory = service.overrides.resources.limits.memory
 
     gateway_enabled = "true" if service.overrides.gateway.enabled else "false"
-    gateway_hostname = f"{service.name}.svcs.calavelas.net"
+    gateway_host = "svcs.calavelas.net"
+    gateway_path_prefix = f"/{service.name}"
 
     return {
         "service_name": service.name,
@@ -154,7 +155,8 @@ def _build_template_context(
         "limits_cpu": limits_cpu,
         "limits_memory": limits_memory,
         "gateway_enabled": gateway_enabled,
-        "gateway_hostname": gateway_hostname,
+        "gateway_host": gateway_host,
+        "gateway_path_prefix": gateway_path_prefix,
         "env": service.overrides.env,
     }
 
