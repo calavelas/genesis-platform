@@ -10,10 +10,12 @@ spec:
   source:
     repoURL: https://github.com/calavelas/ENDR.git
     targetRevision: main
-    path: KUBE/clusters/mac/lab/internet
+    path: KUBE/clusters/mac/lab/gateway
+    directory:
+      include: "*cloudflare*.yaml"
   destination:
     server: https://kubernetes.default.svc
-    namespace: cloudflare-gateway
+    namespace: gateway
   ignoreDifferences:
     - group: gateway.networking.k8s.io
       kind: Gateway
@@ -28,6 +30,9 @@ spec:
       jsonPointers:
         - /status
   syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
     syncOptions:
       - CreateNamespace=true
       - PrunePropagationPolicy=foreground

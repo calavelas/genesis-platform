@@ -1,10 +1,17 @@
 # Gateway Resources (`mac/lab`)
 
-This folder contains the local Traefik Gateway API resources for `*.k8s.local`.
+This folder contains both Traefik local gateway resources and Cloudflare internet gateway resources.
 
 Files:
-- `gateway.yaml`: shared local gateway listeners (`http` + `https`)
-- `gateway-tls.yaml`: local wildcard TLS cert for `*.k8s.local`
-- `route-argocd.yaml`: local ArgoCD route (`argocd.k8s.local`)
+- Traefik local:
+  - `gateway-traefik.yaml`
+  - `gatewaytls-traefik.yaml`
+  - `route-traefik-argocd.yaml`
+- Cloudflare internet:
+  - `gatewayclass-cloudflare.yaml`
+  - `gateway-cloudflare.yaml`
+  - `route-cloudflare-argocd.yaml`
+  - `route-cloudflare-case.yaml`
+  - `cloudflare-credentials.yaml` (placeholder secret, replace before production)
 
-Internet-facing Cloudflare resources are managed in `../internet`.
+`cloudflare-credentials.yaml` is intentionally a placeholder. Do not commit real credentials.

@@ -1,7 +1,7 @@
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: gateway
+  name: local-gateway
   namespace: argocd
   annotations:
     argocd.argoproj.io/compare-result: "false"
@@ -12,6 +12,8 @@ spec:
     repoURL: https://github.com/calavelas/ENDR.git
     targetRevision: main
     path: KUBE/clusters/mac/lab/gateway
+    directory:
+      include: "*traefik*.yaml"
   destination:
     server: https://kubernetes.default.svc
     namespace: gateway

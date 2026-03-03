@@ -1,7 +1,7 @@
 apiVersion: gateway.networking.k8s.io/v1
 kind: Gateway
 metadata:
-  name: gateway
+  name: gateway-traefik
   namespace: gateway
 spec:
   gatewayClassName: traefik
@@ -21,7 +21,7 @@ spec:
         mode: Terminate
         certificateRefs:
           - kind: Secret
-            name: gateway-tls
+            name: gateway-tls-traefik
       allowedRoutes:
         namespaces:
           from: All
