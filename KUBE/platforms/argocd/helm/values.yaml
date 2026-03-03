@@ -429,7 +429,7 @@ configs:
     server.insecure: true
     # Allow embedding ArgoCD in CASE and service detail pages.
     server.x.frame.options: ""
-    server.content.security.policy: "frame-ancestors 'self' http://127.0.0.1:3000 http://localhost:3000"
+    server.content.security.policy: "frame-ancestors 'self' https://case.k8s.local http://case.k8s.local http://127.0.0.1:3000 http://localhost:3000"
     # -- Annotations to be added to the argocd-cmd-params-cm ConfigMap
     annotations: {}
 

@@ -14,6 +14,15 @@ resources:
     cpu: {{ limits_cpu }}
     memory: {{ limits_memory }}
 
-ingress:
+httpRoute:
   enabled: {{ ingress_enabled }}
-  host: {{ ingress_host }}
+  pathPrefix: /
+  parentRefs:
+    - name: gateway
+      namespace: gateway
+      sectionName: http
+    - name: gateway
+      namespace: gateway
+      sectionName: https
+  hostnames:
+    - {{ ingress_host }}
