@@ -1,4 +1,4 @@
-name: TARS - Init and Reconcile
+name: TARS - Generate and Reconcile
 
 on:
   push:
@@ -8,7 +8,7 @@ on:
       - 'ENDR.yaml'
       - 'SVCS.yaml'
       - 'ENDR/TARS/**'
-      - '.github/workflows/tars-init.yml'
+      - '.github/workflows/tars-build.yml'
   pull_request:
     types:
       - opened
@@ -18,7 +18,7 @@ on:
       - 'ENDR.yaml'
       - 'SVCS.yaml'
       - 'ENDR/TARS/**'
-      - '.github/workflows/tars-init.yml'
+      - '.github/workflows/tars-build.yml'
   workflow_dispatch:
 
 permissions:

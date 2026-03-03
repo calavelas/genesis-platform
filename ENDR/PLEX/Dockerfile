@@ -24,4 +24,4 @@ ENV IDP_REPO_ROOT=/workspace
 
 EXPOSE 8000
 
-CMD ["python", "-m", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--app-dir", "ENDR"]
+CMD ["python", "-m", "uvicorn", "TARS.api.main:app", "--host", "0.0.0.0", "--port", "8000", "--app-dir", "ENDR"]

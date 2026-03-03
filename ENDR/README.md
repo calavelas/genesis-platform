@@ -3,7 +3,6 @@
 `ENDR` is the platform umbrella folder.
 
 It contains:
-- `app/`: backend API runtime wrapper.
 - `PLEX/`: portal domain module for ArgoCD-backed data.
 - `TARS/`: automation engine/CLI and templates.
 - `SCPT/`: platform bootstrap/dev scripts.
@@ -17,17 +16,18 @@ It acts as a thin wrapper over shared logic in `ENDR/TARS/`, and provides:
 
 Run locally:
 ```bash
-uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+cd ENDR
+uvicorn TARS.api.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
 Run from repo root:
 ```bash
-python -m uvicorn app.main:app --reload --host 0.0.0.0 --port 8000 --app-dir ENDR
+python -m uvicorn TARS.api.main:app --reload --host 0.0.0.0 --port 8000 --app-dir ENDR
 ```
 
 Validate config files:
 ```bash
-python3 -m app.config.loader
+python3 -m TARS.config.loader
 ```
 
 Current endpoints:

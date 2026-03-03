@@ -4,7 +4,7 @@
 
 It is used by:
 - direct CLI entrypoint (`ENDR/TARS/TARS.py`)
-- API wrapper runtime (`ENDR/app/*`)
+- API runtime (`ENDR/TARS/api/*`)
 
 ## Submodules
 - `api/`: API-compatible handlers and models consumed by `ENDR`.

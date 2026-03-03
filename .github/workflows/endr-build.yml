@@ -6,8 +6,9 @@ on:
       - main
     paths:
       - 'ENDR/CASE/**'
-      - 'ENDR/app/**'
+      - '!ENDR/CASE/chart/**'
       - 'ENDR/PLEX/**'
+      - '!ENDR/PLEX/chart/**'
       - 'ENDR/TARS/**'
       - 'ENDR/pyproject.toml'
       - 'ENDR/PLEX/Dockerfile'
@@ -15,12 +16,13 @@ on:
       - 'ENDR.yaml'
       - 'SVCS.yaml'
       - '.dockerignore'
-      - '.github/workflows/platform-build.yml'
+      - '.github/workflows/endr-build.yml'
   pull_request:
     paths:
       - 'ENDR/CASE/**'
-      - 'ENDR/app/**'
+      - '!ENDR/CASE/chart/**'
       - 'ENDR/PLEX/**'
+      - '!ENDR/PLEX/chart/**'
       - 'ENDR/TARS/**'
       - 'ENDR/pyproject.toml'
       - 'ENDR/PLEX/Dockerfile'
@@ -28,7 +30,7 @@ on:
       - 'ENDR.yaml'
       - 'SVCS.yaml'
       - '.dockerignore'
-      - '.github/workflows/platform-build.yml'
+      - '.github/workflows/endr-build.yml'
   workflow_dispatch:
 
 permissions:

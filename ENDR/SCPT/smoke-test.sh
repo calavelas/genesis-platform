@@ -57,7 +57,7 @@ validate_config_loader() {
   log "running config loader validation"
   (
     cd "${API_DIR}"
-    IDP_REPO_ROOT="${ROOT_DIR}" "${VENV_DIR}/bin/python" -m app.config.loader
+    IDP_REPO_ROOT="${ROOT_DIR}" "${VENV_DIR}/bin/python" -m TARS.config.loader
   ) >"${TMP_DIR}/config-loader.json"
 
   log "config loader output:"
@@ -68,7 +68,7 @@ start_api() {
   log "starting idp-api on 127.0.0.1:${API_PORT}"
   (
     cd "${API_DIR}"
-    IDP_REPO_ROOT="${ROOT_DIR}" "${VENV_DIR}/bin/python" -m uvicorn app.main:app \
+    IDP_REPO_ROOT="${ROOT_DIR}" "${VENV_DIR}/bin/python" -m uvicorn TARS.api.main:app \
       --host 127.0.0.1 \
       --port "${API_PORT}"
   ) >"${TMP_DIR}/idp-api.log" 2>&1 &

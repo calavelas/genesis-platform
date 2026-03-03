@@ -38,7 +38,7 @@ The ArgoCD token is only used on the backend (`PLEX`) and is never exposed to th
 ```bash
 export PLEX_ARGOCD_SERVER="https://argocd.k8s.local"
 export PLEX_ARGOCD_VERIFY_TLS="true"
-python -m uvicorn app.main:app --reload --host 0.0.0.0 --port 8000 --app-dir ENDR
+python -m uvicorn TARS.api.main:app --reload --host 0.0.0.0 --port 8000 --app-dir ENDR
 ```
 
 2. Start CASE against backend:

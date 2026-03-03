@@ -1,4 +1,4 @@
-name: TARS - Build and Deploy
+name: SVCS - Build and Deploy
 
 on:
   push:
@@ -115,7 +115,7 @@ jobs:
           if [ -z "$TAG_SHA" ]; then
             TAG_SHA="$(git rev-parse HEAD)"
           fi
-          echo "tag=git-${TAG_SHA:0:7}" >> "$GITHUB_OUTPUT"
+          echo "tag=${TAG_SHA:0:7}" >> "$GITHUB_OUTPUT"
 
       - name: Update tags in SVCS and regenerate manifests
         if: ${{ steps.detect_source_services.outputs.services != '' }}

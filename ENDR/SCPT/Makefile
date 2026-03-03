@@ -14,7 +14,7 @@ up:
 	@echo "Status: make -f ENDR/SCPT/Makefile dev-status"
 
 api:
-	cd $(REPO_ROOT)/ENDR && uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+	cd $(REPO_ROOT)/ENDR && uvicorn TARS.api.main:app --reload --host 0.0.0.0 --port 8000
 
 web:
 	cd $(REPO_ROOT)/ENDR/CASE && npm run dev

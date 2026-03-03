@@ -26,5 +26,5 @@ log "ensuring idp-api dependencies are installed"
 log "validating ENDR.yaml and SVCS.yaml"
 (
   cd "${API_DIR}"
-  IDP_REPO_ROOT="${ROOT_DIR}" "${VENV_DIR}/bin/python" -m app.config.loader
+  IDP_REPO_ROOT="${ROOT_DIR}" "${VENV_DIR}/bin/python" -m TARS.config.loader
 )
