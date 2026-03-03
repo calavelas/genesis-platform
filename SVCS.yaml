@@ -1,49 +1,10 @@
-services: []
-# - name: miller
-#   namespace: demo
-#   deployTo:
-#   - mac-lab
-#   - gcp-dev
-#   generator:
-#     service:
-#       template: python-fastapi
-#     gitops:
-#       template: helm-service
-#   overrides:
-#     image: calavelas/miller:git-6777046
-# - name: mann
-#   namespace: demo
-#   deployTo:
-#   - mac-lab
-#   - gcp-dev
-#   generator:
-#     service:
-#       template: python-fastapi
-#     gitops:
-#       template: helm-service
-#   overrides:
-#     image: calavelas/mann:git-6777046
-# - name: edmund
-#   namespace: demo
-#   deployTo:
-#   - mac-lab
-#   - gcp-dev
-#   generator:
-#     service:
-#       template: python-fastapi
-#     gitops:
-#       template: helm-service
-#   overrides:
-#     image: calavelas/edmund:git-6777046
-# - name: cooper
-#   namespace: demo
-#   deployTo:
-#   - mac-lab
-#   - gcp-dev
-#   generator:
-#     service:
-#       template: python-fastapi
-#     gitops:
-#       template: helm-service
-#   overrides:
-#     image: calavelas/cooper:git-9f01619
+services:
+- name: miller
+  namespace: demo
+  deployTo:
+  - mac-lab
+  generator:
+    service:
+      template: python-fastapi
+    gitops:
+      template: helm-service

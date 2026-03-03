@@ -7,12 +7,9 @@ config:
     owner: calavelas
     repo: ENDR
     defaultBranch: main
-  activeCluster: mac-lab
   clusters:
     mac-lab:
       name: mac-lab
-    gcp-dev:
-      name: gcp-dev
 templates:
   extends: []
   service:
