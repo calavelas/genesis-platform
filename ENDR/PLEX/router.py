@@ -1,9 +1,8 @@
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 
-from TARS.config.loader import load_all_configs
 from TARS.scaffold.service import CreateServiceRequest, CreateServiceResponse, create_service
-from PLEX.universe import PlexUniverse, build_plex_universe
+from PLEX.plex import PlexUniverse, build_plex_universe, load_plex_configs
 
 router = APIRouter()
 
@@ -31,20 +30,24 @@ class CreateServiceFromPortalRequest(BaseModel):
     dryRun: bool = False
 
 
-@router.get("/api/plex/universe", response_model=PlexUniverse)
+@router.get("/api/plex", response_model=PlexUniverse)
 def get_plex_universe() -> PlexUniverse:
     try:
         return build_plex_universe()
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
+    except Exception as exc:  # noqa: BLE001
+        raise HTTPException(status_code=502, detail=f"unable to build PLEX universe: {exc}") from exc
 
 
 @router.get("/api/plex/templates", response_model=CreateOptionsResponse)
 def get_create_options() -> CreateOptionsResponse:
     try:
-        idp_config, services_config, _paths = load_all_configs()
+        idp_config, services_config, _paths, _svcs_url = load_plex_configs()
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
+    except Exception as exc:  # noqa: BLE001
+        raise HTTPException(status_code=502, detail=f"unable to load PLEX create options: {exc}") from exc
 
     service_templates = [
         CreateTemplateOption(name=template.name, description=template.description)

@@ -13,6 +13,7 @@ spec:
       namespace: gateway
   hostnames:
     - "case.calavelas.net"
+    - "endr.calavelas.net"
   rules:
     - matches:
         - path:

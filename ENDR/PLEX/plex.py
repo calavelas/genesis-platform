@@ -6,11 +6,16 @@ import ssl
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
-from urllib import error, request
+from urllib import error, parse, request
 
 from pydantic import BaseModel
 
-from TARS.config.loader import load_all_configs
+from TARS.config.loader import (
+    load_idp_config,
+    resolve_config_paths,
+    validate_consistency,
+)
+from TARS.config.models import IDPConfig, ServicesConfig
 from TARS.config.paths import (
     DEFAULT_ARGOCD_NAMESPACE,
     active_cluster_name,
@@ -19,6 +24,10 @@ from TARS.config.paths import (
 )
 
 DEFAULT_ARGOCD_SERVER = "https://argocd.k8s.local"
+DEFAULT_SVCS_CONFIG_BLOB_URL = "https://github.com/calavelas/ENDR/blob/main/SVCS.yaml"
+DEFAULT_SVCS_CONFIG_RAW_URL = "https://raw.githubusercontent.com/calavelas/ENDR/main/SVCS.yaml"
+MISSING_SERVICE_WARNING_PREFIX = "Service app '"
+MISSING_SERVICE_WARNING_SUFFIX = "' not found in ArgoCD response."
 
 
 class PlexNode(BaseModel):
@@ -43,6 +52,78 @@ class PlexUniverse(BaseModel):
     warnings: list[str]
     coreApps: list[PlexNode]
     services: list[PlexNode]
+
+
+def _normalize_svcs_config_url(url: str) -> str:
+    value = url.strip()
+    if not value:
+        return DEFAULT_SVCS_CONFIG_RAW_URL
+
+    parsed = parse.urlparse(value)
+    if parsed.scheme in {"http", "https"} and parsed.netloc == "github.com":
+        parts = [part for part in parsed.path.split("/") if part]
+        if len(parts) >= 5 and parts[2] == "blob":
+            owner = parts[0]
+            repo = parts[1]
+            branch = parts[3]
+            path = "/".join(parts[4:])
+            return f"https://raw.githubusercontent.com/{owner}/{repo}/{branch}/{path}"
+    return value
+
+
+def _resolve_svcs_config_url() -> str:
+    configured = os.getenv("PLEX_SVCS_CONFIG_URL", DEFAULT_SVCS_CONFIG_BLOB_URL)
+    return _normalize_svcs_config_url(configured)
+
+
+def _fetch_remote_services_config(url: str) -> ServicesConfig:
+    req = request.Request(url, method="GET")
+    req.add_header("Accept", "text/plain")
+
+    context: ssl.SSLContext | None = None
+    parsed = parse.urlparse(url)
+    if parsed.scheme == "https":
+        verify_tls = os.getenv("PLEX_SVCS_VERIFY_TLS", "true").strip().lower() not in {"0", "false", "no"}
+        if verify_tls:
+            try:
+                import certifi
+
+                context = ssl.create_default_context(cafile=certifi.where())
+            except ModuleNotFoundError:
+                context = ssl.create_default_context()
+        else:
+            context = ssl.create_default_context()
+            context.check_hostname = False
+            context.verify_mode = ssl.CERT_NONE
+
+    with request.urlopen(req, timeout=15, context=context) as response:  # noqa: S310
+        raw = response.read().decode("utf-8")
+
+    if not raw.strip():
+        raise ValueError(f"empty SVCS.yaml payload from {url}")
+
+    try:
+        import yaml
+    except ModuleNotFoundError as exc:
+        raise RuntimeError("PyYAML is required for SVCS.yaml parsing") from exc
+
+    parsed = yaml.safe_load(raw) or {}
+    if not isinstance(parsed, dict):
+        raise ValueError(f"SVCS.yaml root must be a mapping in {url}")
+    return ServicesConfig(**parsed)
+
+
+def load_plex_configs() -> tuple[IDPConfig, ServicesConfig, Any, str]:
+    paths = resolve_config_paths()
+    idp_config = load_idp_config(paths.idpConfigPath)
+    svcs_url = _resolve_svcs_config_url()
+    services_config = _fetch_remote_services_config(svcs_url)
+
+    errors = validate_consistency(idp_config, services_config, Path(paths.repoRoot))
+    if errors:
+        raise ValueError("\n".join(errors))
+
+    return idp_config, services_config, paths, svcs_url
 
 
 def _safe_tag(image: str | None) -> str | None:
@@ -126,7 +207,7 @@ def _core_source_path(name: str, root_repo_dir: str, bootstrap_app_name: str | N
 
 
 def _build_config_universe() -> PlexUniverse:
-    idp_config, services_config, paths = load_all_configs()
+    idp_config, services_config, paths, svcs_url = load_plex_configs()
     apps_repo_dir = cluster_apps_repo_dir(idp_config)
     root_repo_dir = cluster_root_app_repo_dir(idp_config)
     core_names = _discover_core_app_names(paths.repoRoot, root_repo_dir)
@@ -174,6 +255,7 @@ def _build_config_universe() -> PlexUniverse:
         servicesPath=apps_repo_dir,
         warnings=[
             "ArgoCD credentials are not configured; showing config-derived universe snapshot.",
+            f"Service catalog source: {svcs_url}",
         ],
         coreApps=core_apps,
         services=services,
@@ -241,12 +323,91 @@ def _node_from_argocd_app(
     )
 
 
+def _build_service_nodes(
+    services_config: ServicesConfig,
+    app_by_name: dict[str, dict[str, Any]],
+    managed_service_names: set[str] | None = None,
+) -> tuple[list[PlexNode], list[str], bool]:
+    services: list[PlexNode] = []
+    warnings: list[str] = []
+    has_missing_service = False
+
+    for index, service in enumerate(sorted(services_config.services, key=lambda item: item.name), start=1):
+        app = app_by_name.get(service.name)
+        if app:
+            node = _node_from_argocd_app(
+                app,
+                kind="service",
+                orbit_band=(index % 4) + 1,
+                fallback_namespace=service.namespace,
+            )
+            if not node.imageTag:
+                node.imageTag = _safe_tag(service.overrides.image)
+            services.append(node)
+            continue
+
+        # If ArgoCD "services" app no longer manages this app name, treat it as
+        # removed/pruned and skip stale config entries without warning.
+        if managed_service_names is not None and service.name not in managed_service_names:
+            continue
+
+        has_missing_service = True
+        warnings.append(f"{MISSING_SERVICE_WARNING_PREFIX}{service.name}{MISSING_SERVICE_WARNING_SUFFIX}")
+        services.append(
+            PlexNode(
+                name=service.name,
+                kind="service",
+                namespace=service.namespace,
+                syncStatus="Missing",
+                healthStatus="Missing",
+                sourcePath=f"SVCS/{service.name}/chart",
+                revision="main",
+                deployedAt=None,
+                imageTag=_safe_tag(service.overrides.image),
+                orbitBand=(index % 4) + 1,
+            )
+        )
+
+    return services, warnings, has_missing_service
+
+
+def _service_names(services_config: ServicesConfig) -> set[str]:
+    return {service.name for service in services_config.services}
+
+
+def _is_missing_service_warning(message: str) -> bool:
+    return message.startswith(MISSING_SERVICE_WARNING_PREFIX) and message.endswith(MISSING_SERVICE_WARNING_SUFFIX)
+
+
+def _managed_service_names_from_services_app(app_by_name: dict[str, dict[str, Any]]) -> set[str] | None:
+    services_app = app_by_name.get("services")
+    if not isinstance(services_app, dict):
+        return None
+
+    status = services_app.get("status")
+    if not isinstance(status, dict):
+        return None
+
+    resources = status.get("resources")
+    if not isinstance(resources, list):
+        return None
+
+    names: set[str] = set()
+    for resource in resources:
+        if not isinstance(resource, dict):
+            continue
+        if str(resource.get("kind", "")).strip() != "Application":
+            continue
+        name = str(resource.get("name", "")).strip()
+        if name:
+            names.add(name)
+    return names
+
+
 def build_plex_universe() -> PlexUniverse:
-    idp_config, services_config, paths = load_all_configs()
+    idp_config, services_config, paths, svcs_url = load_plex_configs()
     apps_repo_dir = cluster_apps_repo_dir(idp_config)
     root_repo_dir = cluster_root_app_repo_dir(idp_config)
-    core_names = _discover_core_app_names(paths.repoRoot, root_repo_dir)
-    bootstrap_app_name = _read_application_name(Path(paths.repoRoot) / Path(_bootstrap_source_path(root_repo_dir)))
     warnings: list[str] = []
 
     argocd_server = os.getenv("PLEX_ARGOCD_SERVER", DEFAULT_ARGOCD_SERVER).strip()
@@ -278,65 +439,46 @@ def build_plex_universe() -> PlexUniverse:
         if app_name:
             app_by_name[app_name] = app
 
+    service_names = _service_names(services_config)
+    platform_app_names = sorted(name for name in app_by_name if name not in service_names)
     core_apps: list[PlexNode] = []
-    for name in core_names:
+    for name in platform_app_names:
         app = app_by_name.get(name)
-        if app:
-            core_apps.append(
-                _node_from_argocd_app(
-                    app,
-                    kind="core",
-                    orbit_band=0,
-                    fallback_namespace=DEFAULT_ARGOCD_NAMESPACE,
-                )
-            )
-        else:
-            warnings.append(f"Core app '{name}' not found in ArgoCD response.")
-            core_apps.append(
-                PlexNode(
-                    name=name,
-                    kind="core",
-                    namespace=DEFAULT_ARGOCD_NAMESPACE,
-                    syncStatus="Missing",
-                    healthStatus="Missing",
-                    sourcePath=_core_source_path(name, root_repo_dir, bootstrap_app_name),
-                    revision="main",
-                    deployedAt=None,
-                    imageTag=None,
-                    orbitBand=0,
-                )
-            )
-
-    services: list[PlexNode] = []
-    for index, service in enumerate(sorted(services_config.services, key=lambda item: item.name), start=1):
-        app = app_by_name.get(service.name)
-        if app:
-            node = _node_from_argocd_app(
-                app,
-                kind="service",
-                orbit_band=(index % 4) + 1,
-                fallback_namespace=service.namespace,
-            )
-            if not node.imageTag:
-                node.imageTag = _safe_tag(service.overrides.image)
-            services.append(node)
+        if not app:
             continue
-
-        warnings.append(f"Service app '{service.name}' not found in ArgoCD response.")
-        services.append(
-            PlexNode(
-                name=service.name,
-                kind="service",
-                namespace=service.namespace,
-                syncStatus="Missing",
-                healthStatus="Missing",
-                sourcePath=f"SVCS/{service.name}/chart",
-                revision="main",
-                deployedAt=None,
-                imageTag=_safe_tag(service.overrides.image),
-                orbitBand=(index % 4) + 1,
+        core_apps.append(
+            _node_from_argocd_app(
+                app,
+                kind="core",
+                orbit_band=0,
+                fallback_namespace=DEFAULT_ARGOCD_NAMESPACE,
             )
         )
+
+    managed_service_names = _managed_service_names_from_services_app(app_by_name)
+    services, service_warnings, has_missing_service = _build_service_nodes(
+        services_config,
+        app_by_name,
+        managed_service_names=managed_service_names,
+    )
+    warnings.extend(service_warnings)
+
+    # Guard against stale in-memory expectations by re-reading SVCS.yaml when
+    # ArgoCD misses at least one expected service app.
+    if has_missing_service:
+        try:
+            refreshed_services = _fetch_remote_services_config(svcs_url)
+        except Exception:  # noqa: BLE001
+            refreshed_services = None
+
+        if refreshed_services is not None and _service_names(refreshed_services) != _service_names(services_config):
+            warnings = [message for message in warnings if not _is_missing_service_warning(message)]
+            services, service_warnings, _ = _build_service_nodes(
+                refreshed_services,
+                app_by_name,
+                managed_service_names=managed_service_names,
+            )
+            warnings.extend(service_warnings)
 
     return PlexUniverse(
         generatedAt=datetime.now(tz=UTC).isoformat(),

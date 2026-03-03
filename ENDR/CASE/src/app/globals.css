@@ -239,6 +239,13 @@ code {
   font-size: 0.9rem;
 }
 
+.hero-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  flex-wrap: wrap;
+}
+
 .open-link {
   border: 1px solid #3a3a3f;
   border-radius: 999px;

@@ -9,8 +9,7 @@ import { PortalFrame } from "../../components/portal-frame";
 import {
   buildArgoApplicationUrl,
   buildGithubFolderUrl,
-  buildServiceFolderPath,
-  findServiceByName,
+  findCoreAppByName,
   healthTone,
   loadUniverse,
   optionalTimestamp,
@@ -21,82 +20,81 @@ import {
   syncTone
 } from "../../lib/plex";
 
-interface ServiceDetailPageProps {
+interface PlatformServiceDetailPageProps {
   params: Promise<{
     name: string;
   }>;
 }
 
-export default async function ServiceDetailPage({ params }: ServiceDetailPageProps) {
+export default async function PlatformServiceDetailPage({ params }: PlatformServiceDetailPageProps) {
   const { name } = await params;
 
   const universe = await loadUniverse();
-  const serviceName = decodeURIComponent(name);
-  const service = findServiceByName(universe.services, serviceName);
+  const appName = decodeURIComponent(name);
+  const platformService = findCoreAppByName(universe.coreApps, appName);
 
-  if (!service) {
+  if (!platformService) {
     notFound();
   }
 
   const embedUrl = resolveArgoEmbedUrl();
   const githubRepoUrl = resolveGithubRepoUrl();
   const githubBranch = resolveGithubBranch();
-  const serviceArgoUrl = buildArgoApplicationUrl(embedUrl, service.name);
-  const serviceFolder = buildServiceFolderPath(service.name);
-  const serviceGithubUrl = buildGithubFolderUrl(githubRepoUrl, githubBranch, serviceFolder);
+  const appArgoUrl = buildArgoApplicationUrl(embedUrl, platformService.name);
+  const appGithubUrl = platformService.sourcePath
+    ? buildGithubFolderUrl(githubRepoUrl, githubBranch, platformService.sourcePath)
+    : null;
 
   return (
     <PortalFrame universe={universe}>
       <section className="portal-main">
         <section className="hero-row">
           <div>
-            <p className="eyebrow">Application Service Details</p>
-            <h1>{service.name}</h1>
-            <p className="hero-subtitle">Detailed service metadata and deployment posture.</p>
+            <p className="eyebrow">Platform Service Details</p>
+            <h1>{platformService.name}</h1>
+            <p className="hero-subtitle">Detailed platform service metadata and deployment posture.</p>
           </div>
-          <a className="open-link" href={serviceArgoUrl} target="_blank" rel="noreferrer">
+          <a className="open-link" href={appArgoUrl} target="_blank" rel="noreferrer">
             Open In ArgoCD
           </a>
         </section>
 
-        <section className="detail-grid" aria-label="service-details">
+        <section className="detail-grid" aria-label="platform-service-details">
           <article className="panel detail-panel">
             <h2>Identity</h2>
             <dl className="kv-list">
               <div>
                 <dt>Kind</dt>
-                <dd>application services</dd>
+                <dd>platform service</dd>
               </div>
               <div>
                 <dt>Name</dt>
-                <dd>{service.name}</dd>
+                <dd>{platformService.name}</dd>
               </div>
               <div>
                 <dt>Namespace</dt>
-                <dd>{service.namespace}</dd>
+                <dd>{platformService.namespace}</dd>
               </div>
               <div>
                 <dt>Source Path</dt>
                 <dd>
-                  <code>{service.sourcePath}</code>
-                </dd>
-              </div>
-              <div>
-                <dt>Service Folder</dt>
-                <dd>
-                  <code>{serviceFolder}</code>
+                  <code>{platformService.sourcePath || "n/a"}</code>
                 </dd>
               </div>
               <div>
                 <dt>Orbit Band</dt>
-                <dd>{service.orbitBand}</dd>
+                <dd>{platformService.orbitBand}</dd>
               </div>
               <div>
                 <dt>GitHub</dt>
                 <dd>
-                  <a className="entity-link" href={serviceGithubUrl} target="_blank" rel="noreferrer">
-                    Open folder
-                  </a>
+                  {appGithubUrl ? (
+                    <a className="entity-link" href={appGithubUrl} target="_blank" rel="noreferrer">
+                      Open folder
+                    </a>
+                  ) : (
+                    "n/a"
+                  )}
                 </dd>
               </div>
             </dl>
@@ -108,30 +106,32 @@ export default async function ServiceDetailPage({ params }: ServiceDetailPagePro
               <div>
                 <dt>Health</dt>
                 <dd>
-                  <span className={`status-pill tone-${healthTone(service.healthStatus)}`}>{service.healthStatus}</span>
+                  <span className={`status-pill tone-${healthTone(platformService.healthStatus)}`}>
+                    {platformService.healthStatus}
+                  </span>
                 </dd>
               </div>
               <div>
                 <dt>Sync</dt>
                 <dd>
-                  <span className={`status-pill tone-${syncTone(service.syncStatus)}`}>{service.syncStatus}</span>
+                  <span className={`status-pill tone-${syncTone(platformService.syncStatus)}`}>{platformService.syncStatus}</span>
                 </dd>
               </div>
               <div>
                 <dt>Image</dt>
                 <dd>
-                  <code>{service.imageTag ?? "n/a"}</code>
+                  <code>{platformService.imageTag ?? "n/a"}</code>
                 </dd>
               </div>
               <div>
                 <dt>Revision</dt>
                 <dd>
-                  <code>{shortRevision(service.revision)}</code>
+                  <code>{shortRevision(platformService.revision)}</code>
                 </dd>
               </div>
               <div>
                 <dt>Deployed</dt>
-                <dd>{optionalTimestamp(service.deployedAt)}</dd>
+                <dd>{optionalTimestamp(platformService.deployedAt)}</dd>
               </div>
             </dl>
           </article>
@@ -140,11 +140,11 @@ export default async function ServiceDetailPage({ params }: ServiceDetailPagePro
         <section className="panel">
           <h2>ArgoCD Application</h2>
           <p className="embed-note">
-            Embedded page for <strong>{service.name}</strong>. If embedding is blocked, use the direct link.
+            Embedded page for <strong>{platformService.name}</strong>. If embedding is blocked, use the direct link.
           </p>
           <p>
-            <a className="entity-link" href={serviceArgoUrl} target="_blank" rel="noreferrer">
-              {serviceArgoUrl}
+            <a className="entity-link" href={appArgoUrl} target="_blank" rel="noreferrer">
+              {appArgoUrl}
             </a>
           </p>
         </section>
@@ -160,11 +160,11 @@ export default async function ServiceDetailPage({ params }: ServiceDetailPagePro
           </section>
         )}
 
-        <ArgoEmbedPanel embedUrl={serviceArgoUrl} />
+        <ArgoEmbedPanel embedUrl={appArgoUrl} />
 
         <p>
-          <Link className="entity-link" href="/services">
-            Back to Application Services
+          <Link className="entity-link" href="/platform-services">
+            Back to Platform Services
           </Link>
         </p>
       </section>

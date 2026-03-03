@@ -11,7 +11,8 @@ interface NavItem {
 const NAV_ITEMS: NavItem[] = [
   { href: "/", label: "Home" },
   { href: "/create", label: "Create" },
-  { href: "/services", label: "Services" },
+  { href: "/services", label: "Application Services" },
+  { href: "/platform-services", label: "Platform Services" },
   { href: "/argocd", label: "ArgoCD" }
 ];
 

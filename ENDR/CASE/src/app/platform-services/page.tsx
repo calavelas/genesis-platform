@@ -7,24 +7,23 @@ import { PortalFrame } from "../components/portal-frame";
 import {
   buildArgoApplicationUrl,
   buildGithubFolderUrl,
-  buildServiceFolderPath,
   healthTone,
   loadUniverse,
   optionalTimestamp,
+  resolveArgoEmbedUrl,
   resolveGithubBranch,
   resolveGithubRepoUrl,
-  resolveArgoEmbedUrl,
   shortRevision,
   sortByName,
   syncTone
 } from "../lib/plex";
 
-export default async function ServicesPage() {
+export default async function PlatformServicesPage() {
   const universe = await loadUniverse();
   const embedUrl = resolveArgoEmbedUrl();
   const githubRepoUrl = resolveGithubRepoUrl();
   const githubBranch = resolveGithubBranch();
-  const services = sortByName(universe.services);
+  const platformServices = sortByName(universe.coreApps);
 
   return (
     <PortalFrame universe={universe}>
@@ -32,12 +31,12 @@ export default async function ServicesPage() {
         <section className="hero-row">
           <div>
             <p className="eyebrow">Catalog</p>
-            <h1>Application Services</h1>
-            <p className="hero-subtitle">Catalog table with drill-down into each application service.</p>
+            <h1>Platform Services</h1>
+            <p className="hero-subtitle">Catalog table with drill-down into each platform service.</p>
           </div>
-          <Link className="open-link" href="/create">
-            Create Service
-          </Link>
+          <a className="open-link" href={embedUrl} target="_blank" rel="noreferrer">
+            Open ArgoCD
+          </a>
         </section>
 
         {universe.warnings.length > 0 && (
@@ -51,7 +50,7 @@ export default async function ServicesPage() {
           </section>
         )}
 
-        <section className="panel service-table-wrap" aria-label="services-table">
+        <section className="panel service-table-wrap" aria-label="platform-services-table">
           <table className="service-table">
             <thead>
               <tr>
@@ -68,34 +67,34 @@ export default async function ServicesPage() {
               </tr>
             </thead>
             <tbody>
-              {services.map((service) => (
-                <tr key={service.name}>
+              {platformServices.map((app) => (
+                <tr key={app.name}>
                   <td>
-                    <Link className="entity-link" href={`/services/${encodeURIComponent(service.name)}`}>
-                      {service.name}
+                    <Link className="entity-link" href={`/platform-services/${encodeURIComponent(app.name)}`}>
+                      {app.name}
                     </Link>
                   </td>
                   <td>
-                    <span className="catalog-kind">application services</span>
+                    <span className="catalog-kind">platform service</span>
                   </td>
-                  <td>{service.namespace}</td>
+                  <td>{app.namespace}</td>
                   <td>
-                    <span className={`status-pill tone-${healthTone(service.healthStatus)}`}>{service.healthStatus}</span>
-                  </td>
-                  <td>
-                    <span className={`status-pill tone-${syncTone(service.syncStatus)}`}>{service.syncStatus}</span>
+                    <span className={`status-pill tone-${healthTone(app.healthStatus)}`}>{app.healthStatus}</span>
                   </td>
                   <td>
-                    <code>{service.imageTag ?? "n/a"}</code>
+                    <span className={`status-pill tone-${syncTone(app.syncStatus)}`}>{app.syncStatus}</span>
                   </td>
                   <td>
-                    <code>{shortRevision(service.revision)}</code>
+                    <code>{app.imageTag ?? "n/a"}</code>
                   </td>
-                  <td>{optionalTimestamp(service.deployedAt)}</td>
+                  <td>
+                    <code>{shortRevision(app.revision)}</code>
+                  </td>
+                  <td>{optionalTimestamp(app.deployedAt)}</td>
                   <td>
                     <a
                       className="open-link compact"
-                      href={buildArgoApplicationUrl(embedUrl, service.name)}
+                      href={buildArgoApplicationUrl(embedUrl, app.name)}
                       target="_blank"
                       rel="noreferrer"
                     >
@@ -103,22 +102,26 @@ export default async function ServicesPage() {
                     </a>
                   </td>
                   <td>
-                    <a
-                      className="entity-link"
-                      href={buildGithubFolderUrl(githubRepoUrl, githubBranch, buildServiceFolderPath(service.name))}
-                      target="_blank"
-                      rel="noreferrer"
-                    >
-                      Folder
-                    </a>
+                    {app.sourcePath ? (
+                      <a
+                        className="entity-link"
+                        href={buildGithubFolderUrl(githubRepoUrl, githubBranch, app.sourcePath)}
+                        target="_blank"
+                        rel="noreferrer"
+                      >
+                        Folder
+                      </a>
+                    ) : (
+                      <span className="empty-cell">n/a</span>
+                    )}
                   </td>
                 </tr>
               ))}
 
-              {services.length === 0 && (
+              {platformServices.length === 0 && (
                 <tr>
                   <td colSpan={10} className="empty-cell">
-                    No application services found.
+                    No platform services found.
                   </td>
                 </tr>
               )}

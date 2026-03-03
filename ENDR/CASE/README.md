@@ -4,7 +4,7 @@
 - viewing service/deployment status
 - submitting service creation requests (Phase 2)
 - linking users to ArgoCD and observability views
-- visualizing app-of-apps topology via `GET /api/plex/universe`
+- visualizing app-of-apps topology via `GET /api/plex`
 - providing a read-only ArgoCD wrapper UI without user login
 
 ## Folder Structure
@@ -31,7 +31,7 @@ CASE_ARGOCD_EMBED_URL=https://127.0.0.1:18443/applications npm run dev
 ```
 
 ## ArgoCD Read-Only Mode (No UI Login)
-CASE reads ArgoCD data from the ENDR backend endpoint `GET /api/plex/universe`.
+CASE reads ArgoCD data from the ENDR backend endpoint `GET /api/plex`.
 The ArgoCD token is only used on the backend (`PLEX`) and is never exposed to the browser.
 
 1. Start backend with ArgoCD env:

@@ -34,8 +34,7 @@ export function PortalFrame({ children, universe }: PortalFrameProps) {
       <header className="portal-topbar">
         <div className="topbar-brand">
           <span className="brand-dot" />
-          <strong>CASE</strong>
-          <span>Platform View</span>
+          <strong>ENDR</strong>
         </div>
 
         <div className="topbar-status">
@@ -55,7 +54,7 @@ export function PortalFrame({ children, universe }: PortalFrameProps) {
             <h2>Overview</h2>
             <dl>
               <div>
-                <dt>Services</dt>
+                <dt>Application Services</dt>
                 <dd>{totalServices}</dd>
               </div>
               <div>

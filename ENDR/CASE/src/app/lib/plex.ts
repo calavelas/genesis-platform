@@ -191,7 +191,7 @@ function buildFallbackUniverse(reason: string): PlexUniverse {
 
 export async function loadUniverse(): Promise<PlexUniverse> {
   const apiBase = resolveApiBase();
-  const endpoint = `${apiBase}/api/plex/universe`;
+  const endpoint = `${apiBase}/api/plex`;
 
   try {
     const response = await fetch(endpoint, { cache: "no-store" });
@@ -217,4 +217,9 @@ export function hasAttention(node: PlexNode): boolean {
 export function findServiceByName(services: PlexNode[], name: string): PlexNode | undefined {
   const expected = normalize(name);
   return services.find((service) => normalize(service.name) === expected);
+}
+
+export function findCoreAppByName(coreApps: PlexNode[], name: string): PlexNode | undefined {
+  const expected = normalize(name);
+  return coreApps.find((app) => normalize(app.name) === expected);
 }

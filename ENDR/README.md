@@ -34,7 +34,7 @@ Current endpoints:
 - `GET /api/health`
 - `GET /api/config/validate`
 - `GET /api/config`
-- `GET /api/plex/universe` (powered by `PLEX` domain module)
+- `GET /api/plex` (powered by `PLEX` domain module)
 - `POST /api/services` (supports `dryRun`)
 
 Optional env for live ArgoCD-backed portal data:
