@@ -5,7 +5,6 @@ SERVICE_NAME = "sample"
 app = FastAPI(title=SERVICE_NAME)
 
 print(f"Starting {SERVICE_NAME} service...")
-print(f"Hi {SERVICE_NAME} ")
 
 @app.get("/", response_class=HTMLResponse)
 def landing() -> str:
