@@ -10,6 +10,10 @@ on:
       - 'ENDR.yaml'
       - 'SVCS.yaml'
 
+concurrency:
+  group: tars-pr-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
 permissions:
   contents: write
   pull-requests: write
@@ -112,13 +116,13 @@ jobs:
     needs:
       - reconcile
     if: >
+      needs.reconcile.result == 'success' &&
+      github.event.pull_request.state == 'open' &&
       github.event.pull_request.base.ref == 'main' &&
       github.event.pull_request.head.repo.full_name == github.repository &&
-      (
-        startsWith(github.event.pull_request.head.ref, 'case/') ||
-        startsWith(github.event.pull_request.head.ref, 'idp/')
-      ) &&
-      startsWith(github.event.pull_request.title, 'CASE : Adding service :')
+      startsWith(github.event.pull_request.head.ref, 'case/') &&
+      startsWith(github.event.pull_request.title, 'CASE : Adding service :') &&
+      contains(github.event.pull_request.body || '', 'Registered by IDP API.')
     runs-on: ubuntu-latest
     steps:
       - name: Approve and merge CASE PR
@@ -132,13 +136,6 @@ jobs:
             const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
             core.setOutput("decision", "started");
             core.setOutput("merged", "false");
-
-            const body = String(pr.body || "");
-            if (!body.includes("Registered by IDP API.")) {
-              core.notice("Skipping CASE auto-merge: PR body marker not found.");
-              core.setOutput("decision", "skip-body-marker");
-              return;
-            }
 
             const files = await github.paginate(github.rest.pulls.listFiles, {
               owner,
