@@ -63,18 +63,6 @@ services:
     gateway:
       enabled: true
     image: calavelas/edmund:b9ea917
-- name: caseflow220427
-  namespace: demo
-  environments:
-  - mac-lab
-  generator:
-    service:
-      template: python-fastapi
-    gitops:
-      template: helm-service
-  overrides:
-    gateway:
-      enabled: true
 - name: caseflow221041
   namespace: demo
   environments:
