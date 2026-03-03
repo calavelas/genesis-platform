@@ -1,13 +1,6 @@
 name: SVCS - Build and Deploy
 
 on:
-  push:
-    branches:
-      - main
-    paths:
-      - 'SVCS/*/**'
-      - '!SVCS/*/chart/**'
-      - '.github/workflows/svcs-build.yml'
   workflow_run:
     workflows:
       - TARS - Generate and Reconcile
@@ -22,6 +15,7 @@ permissions:
 jobs:
   services-change-discovery:
     name: Services Change Discovery
+    if: github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'main'
     runs-on: ubuntu-latest
     outputs:
       matrix: ${{ steps.discover.outputs.matrix }}
@@ -34,7 +28,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-          ref: ${{ github.event_name == 'workflow_run' && 'refs/heads/main' || github.ref_name }}
+          ref: ${{ github.event.workflow_run.head_sha }}
 
       - uses: actions/setup-python@v5
         with:
@@ -55,16 +49,10 @@ jobs:
         run: |
           set -euo pipefail
 
-          if [ "${{ github.event_name }}" = "workflow_run" ]; then
-            BEFORE="${{ github.event.workflow_run.head_sha }}"
-            AFTER="$(git rev-parse HEAD)"
-          else
-            BEFORE="${{ github.event.before }}"
-            AFTER="${{ github.sha }}"
-          fi
-
-          if [ -z "$AFTER" ]; then
-            AFTER="$(git rev-parse HEAD)"
+          AFTER="${{ github.event.workflow_run.head_sha }}"
+          BEFORE=""
+          if git rev-parse "${AFTER}^" >/dev/null 2>&1; then
+            BEFORE="$(git rev-parse "${AFTER}^")"
           fi
 
           if [ -z "$BEFORE" ] || [[ "$BEFORE" =~ ^0+$ ]]; then
@@ -261,17 +249,13 @@ jobs:
       needs['services-change-discovery'].result == 'success' &&
       needs['services-change-discovery'].outputs.has_services == 'true' &&
       needs['services-change-discovery'].outputs.services != '' &&
-      needs['build-and-push'].result == 'success' &&
-      (
-        (github.event_name == 'push' && github.ref_name == 'main') ||
-        (github.event_name == 'workflow_run' && github.event.workflow_run.head_branch == 'main')
-      )
+      needs['build-and-push'].result == 'success'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-          ref: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_branch || github.ref_name }}
+          ref: main
 
       - uses: actions/setup-python@v5
         with:
@@ -306,7 +290,7 @@ jobs:
             exit 0
           fi
           git commit -m "TARS : Persist image tag ${{ needs['services-change-discovery'].outputs.tag }} for ${{ needs['services-change-discovery'].outputs.service_count }} service(s)"
-          git push origin HEAD:${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_branch || github.ref_name }}
+          git push origin HEAD:main
 
       - name: Summary
         run: |
