@@ -1,0 +1,25 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: cloudflare-gateway
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/pl4nty/cloudflare-kubernetes-gateway.git
+    targetRevision: v0.8.1
+    path: config/default
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: cloudflare-gateway
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - PrunePropagationPolicy=foreground
+      - ServerSideDiff=true
+      - ServerSideApply=true

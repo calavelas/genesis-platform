@@ -1,0 +1,36 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: internet-gateway
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "4"
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/calavelas/ENDR.git
+    targetRevision: main
+    path: KUBE/clusters/mac/lab/internet
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: cloudflare-gateway
+  ignoreDifferences:
+    - group: gateway.networking.k8s.io
+      kind: Gateway
+      jsonPointers:
+        - /status
+    - group: gateway.networking.k8s.io
+      kind: HTTPRoute
+      jsonPointers:
+        - /status
+    - group: gateway.networking.k8s.io
+      kind: GatewayClass
+      jsonPointers:
+        - /status
+  syncPolicy:
+    syncOptions:
+      - CreateNamespace=true
+      - PrunePropagationPolicy=foreground
+      - RespectIgnoreDifferences=true
+      - ServerSideDiff=true
+      - ServerSideApply=true
