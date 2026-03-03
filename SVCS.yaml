@@ -50,3 +50,4 @@ services:
   overrides:
     gateway:
       enabled: true
+    image: calavelas/edmund:fcea25b
