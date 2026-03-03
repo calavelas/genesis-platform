@@ -252,6 +252,36 @@ jobs:
           set -euo pipefail
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          CHANGED_FILES="$(git diff --cached --name-only | sed '/^$/d' || true)"
+          FILE_COUNT=0
+          if [ -n "$CHANGED_FILES" ]; then
+            FILE_COUNT="$(printf "%s\n" "$CHANGED_FILES" | sed '/^$/d' | wc -l | tr -d ' ')"
+          fi
+          CHANGED_SERVICES="$(printf "%s\n" "$CHANGED_FILES" | awk -F/ '
+            $1=="SVCS" && $2!="" && $2!="examples" { print $2; next }
+            $1=="KUBE" && $2=="clusters" && $0 ~ /\/services\/[^/]+\.yaml$/ {
+              name=$NF
+              sub(/\.yaml$/, "", name)
+              print name
+              next
+            }
+          ' | sort -u | paste -sd, -)"
+          SERVICE_COUNT=0
+          if [ -n "$CHANGED_SERVICES" ]; then
+            SERVICE_COUNT="$(printf "%s\n" "$CHANGED_SERVICES" | tr ',' '\n' | sed '/^$/d' | wc -l | tr -d ' ')"
+          fi
+
+          echo "changed_services=${CHANGED_SERVICES}" >> "$GITHUB_OUTPUT"
+          echo "changed_service_count=${SERVICE_COUNT}" >> "$GITHUB_OUTPUT"
+          echo "changed_file_count=${FILE_COUNT}" >> "$GITHUB_OUTPUT"
+          if [ -n "$CHANGED_FILES" ]; then
+            {
+              echo 'changed_files<<EOF'
+              printf '%s\n' "$CHANGED_FILES"
+              echo 'EOF'
+            } >> "$GITHUB_OUTPUT"
+          fi
+
           if git diff --cached --quiet; then
             echo "No staged changes to commit."
             echo "pushed=false" >> "$GITHUB_OUTPUT"
@@ -266,12 +296,49 @@ jobs:
         if: always()
         run: |
           set -euo pipefail
-          echo "::notice title=TARS Push::pushed=${{ steps.commit_push.outputs.pushed || 'false' }}, commit=${{ steps.commit_push.outputs.commit_sha || 'n/a' }}"
+          as_bullets_csv() {
+            local csv="$1"
+            if [ -z "$csv" ]; then
+              echo "- none"
+              return
+            fi
+            printf "%s\n" "$csv" | tr ',' '\n' | sed '/^$/d' | awk '{ printf "- `%s`\n", $0 }'
+          }
+
+          as_bullets_lines() {
+            local lines="$1"
+            if [ -z "$lines" ]; then
+              echo "- none"
+              return
+            fi
+            printf "%s\n" "$lines" | sed '/^$/d' | awk '{ printf "- `%s`\n", $0 }'
+          }
+
+          PUSHED="${{ steps.commit_push.outputs.pushed || 'false' }}"
+          COMMIT_SHA="${{ steps.commit_push.outputs.commit_sha || 'n/a' }}"
+          SHORT_SHA="n/a"
+          if [ "$COMMIT_SHA" != "n/a" ]; then
+            SHORT_SHA="${COMMIT_SHA:0:7}"
+          fi
+          CHANGED_SERVICES="${{ steps.commit_push.outputs.changed_services }}"
+          CHANGED_FILES="${{ steps.commit_push.outputs.changed_files }}"
+          SERVICE_COUNT="${{ steps.commit_push.outputs.changed_service_count || '0' }}"
+          FILE_COUNT="${{ steps.commit_push.outputs.changed_file_count || '0' }}"
+
+          echo "::notice title=TARS Push::pushed=${PUSHED}, commit=${SHORT_SHA}, services=${SERVICE_COUNT}, files=${FILE_COUNT}"
           {
             echo "### TARS Push Summary"
             echo ""
             echo "| Item | Value |"
             echo "| --- | --- |"
-            echo "| Pushed commit | \`${{ steps.commit_push.outputs.pushed || 'false' }}\` |"
-            echo "| Commit SHA | \`${{ steps.commit_push.outputs.commit_sha || 'n/a' }}\` |"
+            echo "| Pushed commit | \`${PUSHED}\` |"
+            echo "| Commit SHA | \`${COMMIT_SHA}\` |"
+            echo "| Changed services | \`${SERVICE_COUNT}\` |"
+            echo "| Changed files | \`${FILE_COUNT}\` |"
+            echo ""
+            echo "#### Services"
+            as_bullets_csv "${CHANGED_SERVICES}"
+            echo ""
+            echo "#### File Changes"
+            as_bullets_lines "${CHANGED_FILES}"
           } >> "$GITHUB_STEP_SUMMARY"
