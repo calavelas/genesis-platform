@@ -25,3 +25,15 @@ services:
     gateway:
       enabled: true
     image: calavelas/cooper:f50296f
+- name: case-e2e-merge-test
+  namespace: demo
+  environments:
+  - mac-lab
+  generator:
+    service:
+      template: python-fastapi
+    gitops:
+      template: helm-service
+  overrides:
+    gateway:
+      enabled: true
