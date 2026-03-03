@@ -1,21 +1,17 @@
 replicaCount: 1
-
 image:
   repository: calavelas/endr-api
-  tag: git-local
+  tag: git-6ec51f5
   pullPolicy: IfNotPresent
-
 service:
   type: ClusterIP
   port: 80
   targetPort: 8000
-
 env:
   IDP_REPO_ROOT: /workspace
   PLEX_ARGOCD_SERVER: https://argocd.k8s.local
-  PLEX_ARGOCD_TOKEN: ""
-  PLEX_ARGOCD_VERIFY_TLS: "false"
-
+  PLEX_ARGOCD_TOKEN: ''
+  PLEX_ARGOCD_VERIFY_TLS: 'false'
 resources:
   requests:
     cpu: 100m
