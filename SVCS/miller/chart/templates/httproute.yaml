@@ -1,0 +1,23 @@
+{{- if .Values.httpRoute.enabled }}
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: miller-route
+spec:
+  parentRefs:
+{{ toYaml .Values.httpRoute.parentRefs | indent 4 }}
+{{- if .Values.httpRoute.hostnames }}
+  hostnames:
+{{- range .Values.httpRoute.hostnames }}
+    - {{ . | quote }}
+{{- end }}
+{{- end }}
+  rules:
+    - matches:
+        - path:
+            type: PathPrefix
+            value: {{ .Values.httpRoute.pathPrefix | quote }}
+      backendRefs:
+        - name: miller
+          port: 80
+{{- end }}

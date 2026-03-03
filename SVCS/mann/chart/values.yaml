@@ -14,6 +14,15 @@ resources:
     cpu: 250m
     memory: 256Mi
 
-ingress:
+httpRoute:
   enabled: false
-  host: 
+  pathPrefix: /
+  parentRefs:
+    - name: gateway
+      namespace: gateway
+      sectionName: http
+    - name: gateway
+      namespace: gateway
+      sectionName: https
+  hostnames:
+    - 
