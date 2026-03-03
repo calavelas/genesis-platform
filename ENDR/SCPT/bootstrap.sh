@@ -130,6 +130,7 @@ GitOps bootstrap:
 URLs:
 - ArgoCD (gateway):  https://argocd.k8s.local
 - ArgoCD (port-forward): https://127.0.0.1:18443
+- ENDR UI/API (gateway): https://case.k8s.local, https://api.k8s.local
 - Services (gateway): https://mann.k8s.local, https://miller.k8s.local, https://edmund.k8s.local
 
 Commands:
@@ -141,7 +142,7 @@ Credentials:
 - ArgoCD password: ${argocd_password:-<run kubectl -n ${ARGOCD_NAMESPACE} get secret argocd-initial-admin-secret>}
 
 Hosts entries for local testing (if needed):
-- 127.0.0.1 argocd.k8s.local mann.k8s.local miller.k8s.local edmund.k8s.local
+- 127.0.0.1 argocd.k8s.local case.k8s.local api.k8s.local mann.k8s.local miller.k8s.local edmund.k8s.local
 EOF_SUMMARY
 }
 

@@ -1,0 +1,29 @@
+replicaCount: 1
+
+image:
+  repository: calavelas/endr-case
+  tag: git-local
+  pullPolicy: IfNotPresent
+
+service:
+  type: ClusterIP
+  port: 80
+  targetPort: 3000
+
+env:
+  ENDR_API_URL: http://endr-api.endr.svc.cluster.local
+  NEXT_PUBLIC_ENDR_API_URL: http://endr-api.endr.svc.cluster.local
+  CASE_ARGOCD_EMBED_URL: https://argocd.k8s.local/applications
+  NEXT_PUBLIC_CASE_ARGOCD_EMBED_URL: https://argocd.k8s.local/applications
+  CASE_GITHUB_REPO_URL: https://github.com/calavelas/ENDR
+  NEXT_PUBLIC_CASE_GITHUB_REPO_URL: https://github.com/calavelas/ENDR
+  CASE_GITHUB_BRANCH: main
+  NEXT_PUBLIC_CASE_GITHUB_BRANCH: main
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 128Mi
+  limits:
+    cpu: 300m
+    memory: 384Mi

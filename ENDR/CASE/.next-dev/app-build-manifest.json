@@ -20,11 +20,6 @@
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
       "static/chunks/app/services/[name]/page.js"
-    ],
-    "/argocd/page": [
-      "static/chunks/webpack.js",
-      "static/chunks/main-app.js",
-      "static/chunks/app/argocd/page.js"
     ]
   }
 }

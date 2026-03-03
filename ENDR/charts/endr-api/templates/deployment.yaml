@@ -1,0 +1,38 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: endr-api
+  labels:
+    app.kubernetes.io/name: endr-api
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: endr-api
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: endr-api
+    spec:
+      containers:
+        - name: endr-api
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: {{ .Values.service.targetPort }}
+          env:
+{{- range $name, $value := .Values.env }}
+            - name: {{ $name }}
+              value: {{ $value | quote }}
+{{- end }}
+          readinessProbe:
+            httpGet:
+              path: /api/health
+              port: http
+          livenessProbe:
+            httpGet:
+              path: /api/health
+              port: http
+          resources:
+{{ toYaml .Values.resources | indent 12 }}
