@@ -6,3 +6,6 @@ Helm resources generated:
 - `Deployment`
 - `Service`
 - `HTTPRoute` (when `httpRoute.enabled=true` in chart values)
+
+Default `HTTPRoute` hostname is:
+- `<service-name>.svcs.calavelas.net`

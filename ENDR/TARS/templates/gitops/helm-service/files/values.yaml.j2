@@ -18,11 +18,9 @@ httpRoute:
   enabled: {{ ingress_enabled }}
   pathPrefix: /
   parentRefs:
-    - name: gateway
+    - group: gateway.networking.k8s.io
+      kind: Gateway
+      name: gateway-cloudflare
       namespace: gateway
-      sectionName: http
-    - name: gateway
-      namespace: gateway
-      sectionName: https
   hostnames:
-    - {{ ingress_host }}
+    - {{ ingress_host or (service_name + ".svcs.calavelas.net") }}

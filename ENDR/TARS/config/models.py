@@ -106,12 +106,6 @@ class IngressConfig(BaseModel):
     enabled: bool = False
     host: str | None = None
 
-    @model_validator(mode="after")
-    def check_host_when_enabled(self) -> "IngressConfig":
-        if self.enabled and not self.host:
-            raise ValueError("host is required when ingress.enabled=true")
-        return self
-
 
 class ServiceOverrides(BaseModel):
     image: str | None = None

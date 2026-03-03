@@ -6,7 +6,7 @@ import os
 from pathlib import Path
 
 from jinja2 import Environment, StrictUndefined
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, Field
 
 from TARS.config.loader import load_all_configs
 from TARS.config.paths import (
@@ -34,18 +34,12 @@ class CreateServiceRequest(BaseModel):
     deployTo: list[str] = Field(default_factory=list)
     env: dict[str, str] = Field(default_factory=dict)
     resources: ResourceConfig | None = None
-    ingressEnabled: bool = False
+    ingressEnabled: bool = True
     ingressHost: str | None = None
     serviceTemplate: str | None = None
     gitopsTemplate: str | None = None
     dryRun: bool = True
     branchName: str | None = None
-
-    @model_validator(mode="after")
-    def validate_ingress(self) -> "CreateServiceRequest":
-        if self.ingressEnabled and not self.ingressHost:
-            raise ValueError("ingressHost is required when ingressEnabled=true")
-        return self
 
 
 class GeneratedFile(BaseModel):
@@ -83,7 +77,10 @@ def _resolve_local_template_path(repo_root: Path, template: TemplateRef) -> Path
 
 
 def _build_overrides(request: CreateServiceRequest) -> ServiceOverrides:
-    ingress = IngressConfig(enabled=request.ingressEnabled, host=request.ingressHost)
+    ingress_host = request.ingressHost
+    if request.ingressEnabled and not ingress_host:
+        ingress_host = f"{request.name}.svcs.calavelas.net"
+    ingress = IngressConfig(enabled=request.ingressEnabled, host=ingress_host)
     return ServiceOverrides(
         image=request.image,
         port=request.port,
@@ -139,7 +136,10 @@ def _build_template_context(
         limits_memory = service.overrides.resources.limits.memory
 
     ingress_enabled = "true" if service.overrides.ingress.enabled else "false"
-    ingress_host = service.overrides.ingress.host or ""
+    ingress_host = (
+        service.overrides.ingress.host
+        or f"{service.name}.svcs.calavelas.net"
+    )
 
     return {
         "service_name": service.name,
