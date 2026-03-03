@@ -314,14 +314,58 @@ jobs:
               core.warning(`Approval step failed: ${error.message}`);
             }
 
+            const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+            let latestPr = null;
+            for (let attempt = 0; attempt < 8; attempt += 1) {
+              const result = await github.rest.pulls.get({
+                owner,
+                repo,
+                pull_number: pr.number,
+              });
+              latestPr = result.data;
+              if (latestPr.mergeable !== null) {
+                break;
+              }
+              await sleep(2000);
+            }
+
+            if (!latestPr) {
+              throw new Error(`Unable to load PR state for #${pr.number}`);
+            }
+
+            if (latestPr.merged) {
+              core.notice(`PR #${pr.number} is already merged.`);
+              return;
+            }
+
+            let mergedNow = false;
+            try {
+              await github.rest.pulls.merge({
+                owner,
+                repo,
+                pull_number: pr.number,
+                merge_method: "squash",
+                sha: latestPr.head.sha,
+              });
+              mergedNow = true;
+              core.notice(`Merged PR #${pr.number} via direct merge.`);
+            } catch (error) {
+              core.notice(`Direct merge not ready for PR #${pr.number}: ${error.message}`);
+            }
+
+            if (mergedNow) {
+              return;
+            }
+
             try {
               await github.graphql(
                 `
-                mutation EnableAutoMerge($pullRequestId: ID!) {
+                mutation EnableAutoMerge($pullRequestId: ID!, $expectedHeadOid: GitObjectID!) {
                   enablePullRequestAutoMerge(
                     input: {
                       pullRequestId: $pullRequestId
                       mergeMethod: SQUASH
+                      expectedHeadOid: $expectedHeadOid
                     }
                   ) {
                     pullRequest {
@@ -330,9 +374,14 @@ jobs:
                   }
                 }
                 `,
-                { pullRequestId: pr.node_id }
+                {
+                  pullRequestId: latestPr.node_id,
+                  expectedHeadOid: latestPr.head.sha,
+                }
               );
               core.notice(`Enabled auto-merge for PR #${pr.number}.`);
             } catch (error) {
-              core.warning(`Enable auto-merge failed: ${error.message}`);
+              throw new Error(
+                `Unable to merge PR #${pr.number}. Direct merge failed and auto-merge could not be enabled: ${error.message}`
+              );
             }
