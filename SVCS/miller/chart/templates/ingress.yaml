@@ -1,11 +1,12 @@
-{{- if .Values.ingress.enabled }}
+{{- $ingress := index .Values "ingress" | default dict }}
+{{- if (index $ingress "enabled" | default false) }}
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: miller
 spec:
   rules:
-    - host: "{{ .Values.ingress.host }}"
+    - host: "{{ default (printf "%s.local" .Chart.Name) (index $ingress "host") }}"
       http:
         paths:
           - path: /
