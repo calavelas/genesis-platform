@@ -5,7 +5,7 @@
 ## Key files
 - `Makefile`: primary command interface (`bootstrap`, `svcs-check`, `api`, `web`, smoke tests).
 - `bootstrap.sh`: creates local cluster, installs ArgoCD from in-repo chart, and applies GitOps root app.
-- `dev-stack.sh`: starts/stops local backend + frontend + ArgoCD port-forward with PID/log management.
+- `dev-stack.sh`: starts/stops local backend + frontend with PID/log management, and can optionally run ArgoCD port-forward.
 - `validate-config.sh`: validates `ENDR.yaml` and `SVCS.yaml`.
 - `smoke-test.sh`: API/platform smoke test runner.
 - `ci/`: CI helper scripts invoked by GitHub Actions.
@@ -32,7 +32,8 @@ Bootstrap environment overrides:
 Use `dev-stack.sh` to run the full local stack:
 - Backend API on `http://127.0.0.1:8000`
 - CASE frontend on `http://127.0.0.1:3000`
-- ArgoCD exposed via port-forward on `https://127.0.0.1:18443`
+- ArgoCD defaults to gateway URL `https://argocd.k8s.local`
+- Optional ArgoCD port-forward on `https://127.0.0.1:18443`
 
 ```bash
 bash ENDR/SCPT/dev-stack.sh start
@@ -45,7 +46,41 @@ Environment overrides:
 - `BACKEND_HOST`, `BACKEND_PORT`
 - `FRONTEND_HOST`, `FRONTEND_PORT`
 - `ENDR_API_URL`
+- `ENABLE_ARGOCD_PORT_FORWARD` (default `false`; set `true` to start `kubectl port-forward`)
 - `ARGOCD_NAMESPACE`, `ARGOCD_LOCAL_PORT`, `ARGOCD_REMOTE_PORT`
-- `ARGOCD_BASE_URL` (default `https://127.0.0.1:18443`)
+- `ARGOCD_BASE_URL` (default `https://argocd.k8s.local`; when port-forward is enabled and this is unset, defaults to `https://127.0.0.1:18443`)
 - `PLEX_ARGOCD_SERVER`, `PLEX_ARGOCD_VERIFY_TLS`
 - `CASE_ARGOCD_EMBED_URL`
+
+## Cloudflare Tunnel (CASE Gateway)
+Use `cloudflare-tunnel.sh` to expose the local gateway hostname `case.k8s.local` to the public internet via Cloudflare Tunnel.
+
+Prerequisites:
+- `cloudflared` installed (`brew install cloudflared` on macOS)
+- local cluster/gateway running and resolving `case.k8s.local` to your local gateway IP
+- a Cloudflare-managed DNS zone and a hostname you want to publish (for example `case.example.com`)
+
+One-time setup:
+```bash
+export CLOUDFLARE_TUNNEL_PUBLIC_HOSTNAME=case.example.com
+make -f ENDR/SCPT/Makefile tunnel-login
+make -f ENDR/SCPT/Makefile tunnel-setup
+```
+
+Run/observe:
+```bash
+export CLOUDFLARE_TUNNEL_PUBLIC_HOSTNAME=case.example.com
+make -f ENDR/SCPT/Makefile tunnel-start
+make -f ENDR/SCPT/Makefile tunnel-status
+make -f ENDR/SCPT/Makefile tunnel-logs
+make -f ENDR/SCPT/Makefile tunnel-stop
+```
+
+Default tunnel origin (local side):
+- `CLOUDFLARE_TUNNEL_ORIGIN_URL=https://case.k8s.local`
+- `CLOUDFLARE_TUNNEL_ORIGIN_HOST_HEADER=case.k8s.local`
+- `CLOUDFLARE_TUNNEL_ORIGIN_NO_TLS_VERIFY=true` (useful with local/self-signed gateway cert)
+
+Optional overrides:
+- `CLOUDFLARE_TUNNEL_NAME` (default `endr-case`)
+- `CLOUDFLARED_CONFIG_DIR` (default `~/.cloudflared`)

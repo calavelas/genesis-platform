@@ -16,7 +16,27 @@ FRONTEND_PORT="${FRONTEND_PORT:-3000}"
 ARGOCD_NAMESPACE="${ARGOCD_NAMESPACE:-argocd}"
 ARGOCD_LOCAL_PORT="${ARGOCD_LOCAL_PORT:-18443}"
 ARGOCD_REMOTE_PORT="${ARGOCD_REMOTE_PORT:-443}"
-ARGOCD_BASE_URL="${ARGOCD_BASE_URL:-https://127.0.0.1:${ARGOCD_LOCAL_PORT}}"
+ENABLE_ARGOCD_PORT_FORWARD="${ENABLE_ARGOCD_PORT_FORWARD:-false}"
+
+argocd_port_forward_enabled() {
+  case "${ENABLE_ARGOCD_PORT_FORWARD}" in
+    1|true|TRUE|True|yes|YES|on|ON)
+      return 0
+      ;;
+    *)
+      return 1
+      ;;
+  esac
+}
+
+if [ -z "${ARGOCD_BASE_URL:-}" ]; then
+  if argocd_port_forward_enabled; then
+    ARGOCD_BASE_URL="https://127.0.0.1:${ARGOCD_LOCAL_PORT}"
+  else
+    ARGOCD_BASE_URL="https://argocd.k8s.local"
+  fi
+fi
+
 PLEX_ARGOCD_SERVER="${PLEX_ARGOCD_SERVER:-${ARGOCD_BASE_URL}}"
 PLEX_ARGOCD_TOKEN="${PLEX_ARGOCD_TOKEN:-}"
 PLEX_ARGOCD_VERIFY_TLS="${PLEX_ARGOCD_VERIFY_TLS:-false}"
@@ -32,6 +52,7 @@ FRONTEND_LOG_FILE="${LOG_DIR}/frontend.log"
 ARGOCD_LOG_FILE="${LOG_DIR}/argocd-port-forward.log"
 
 mkdir -p "${LOG_DIR}"
+touch "${BACKEND_LOG_FILE}" "${FRONTEND_LOG_FILE}" "${ARGOCD_LOG_FILE}"
 
 require_cmd() {
   if ! command -v "$1" >/dev/null 2>&1; then
@@ -154,7 +175,11 @@ show_logs() {
       tail -f "${ARGOCD_LOG_FILE}"
       ;;
     all)
-      tail -f "${BACKEND_LOG_FILE}" "${FRONTEND_LOG_FILE}" "${ARGOCD_LOG_FILE}"
+      if argocd_port_forward_enabled; then
+        tail -f "${BACKEND_LOG_FILE}" "${FRONTEND_LOG_FILE}" "${ARGOCD_LOG_FILE}"
+      else
+        tail -f "${BACKEND_LOG_FILE}" "${FRONTEND_LOG_FILE}"
+      fi
       ;;
     *)
       echo "usage: $0 logs [all|backend|frontend|argocd]"
@@ -166,8 +191,10 @@ show_logs() {
 start_all() {
   require_cmd bash
   require_cmd npm
-  require_cmd kubectl
   require_backend_python
+  if argocd_port_forward_enabled; then
+    require_cmd kubectl
+  fi
 
   start_process \
     "backend" \
@@ -181,11 +208,15 @@ start_all() {
     "${FRONTEND_PID_FILE}" \
     "${FRONTEND_LOG_FILE}"
 
-  start_process \
-    "argocd-port-forward" \
-    "exec kubectl -n '${ARGOCD_NAMESPACE}' port-forward svc/argocd-server '${ARGOCD_LOCAL_PORT}:${ARGOCD_REMOTE_PORT}'" \
-    "${ARGOCD_PID_FILE}" \
-    "${ARGOCD_LOG_FILE}"
+  if argocd_port_forward_enabled; then
+    start_process \
+      "argocd-port-forward" \
+      "exec kubectl -n '${ARGOCD_NAMESPACE}' port-forward svc/argocd-server '${ARGOCD_LOCAL_PORT}:${ARGOCD_REMOTE_PORT}'" \
+      "${ARGOCD_PID_FILE}" \
+      "${ARGOCD_LOG_FILE}"
+  else
+    stop_process "argocd-port-forward" "${ARGOCD_PID_FILE}" >/dev/null 2>&1 || true
+  fi
 
   status_all
 }
@@ -199,7 +230,12 @@ stop_all() {
 status_all() {
   print_status_line "backend" "${BACKEND_PID_FILE}" "-> http://${BACKEND_HOST}:${BACKEND_PORT}"
   print_status_line "frontend" "${FRONTEND_PID_FILE}" "-> http://${FRONTEND_HOST}:${FRONTEND_PORT}"
-  print_status_line "argocd-port-forward" "${ARGOCD_PID_FILE}" "-> https://127.0.0.1:${ARGOCD_LOCAL_PORT}"
+  if argocd_port_forward_enabled; then
+    print_status_line "argocd-port-forward" "${ARGOCD_PID_FILE}" "-> https://127.0.0.1:${ARGOCD_LOCAL_PORT}"
+  else
+    echo "[dev-stack] argocd-port-forward: disabled (using direct URL)"
+  fi
+  echo "[dev-stack] argocd-base-url: ${ARGOCD_BASE_URL}"
   echo "[dev-stack] plex-argocd-server: ${PLEX_ARGOCD_SERVER}"
   echo "[dev-stack] case-argocd-embed: ${CASE_ARGOCD_EMBED_URL}"
 }

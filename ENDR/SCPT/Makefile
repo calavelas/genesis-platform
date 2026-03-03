@@ -1,4 +1,4 @@
-.PHONY: bootstrap up down port-forward port-forward-argocd port-forward-grafana port-forward-prometheus api web validate-config smoke-test smoke-test-api smoke-test-platform svcs-check svcs-sync dev-start dev-stop dev-restart dev-status dev-logs
+.PHONY: bootstrap up down port-forward port-forward-argocd port-forward-grafana port-forward-prometheus api web validate-config smoke-test smoke-test-api smoke-test-platform svcs-check svcs-sync dev-start dev-stop dev-restart dev-status dev-logs tunnel-login tunnel-create tunnel-route tunnel-setup tunnel-start tunnel-stop tunnel-restart tunnel-status tunnel-logs tunnel-render-config
 
 CLUSTER_NAME ?= mac-lab
 MAKEFILE_DIR := $(patsubst %/,%,$(dir $(abspath $(lastword $(MAKEFILE_LIST)))))
@@ -68,3 +68,33 @@ svcs-check:
 svcs-sync:
 	@echo "Running SVCS check and writing generated files to working tree..."
 	$(REPO_ROOT)/ENDR/.venv/bin/python $(REPO_ROOT)/ENDR/TARS/TARS.py svcs-check --repo-root $(REPO_ROOT) --write-worktree
+
+tunnel-login:
+	bash $(MAKEFILE_DIR)/cloudflare-tunnel.sh login
+
+tunnel-create:
+	bash $(MAKEFILE_DIR)/cloudflare-tunnel.sh create
+
+tunnel-route:
+	bash $(MAKEFILE_DIR)/cloudflare-tunnel.sh route
+
+tunnel-setup:
+	bash $(MAKEFILE_DIR)/cloudflare-tunnel.sh setup
+
+tunnel-start:
+	bash $(MAKEFILE_DIR)/cloudflare-tunnel.sh start
+
+tunnel-stop:
+	bash $(MAKEFILE_DIR)/cloudflare-tunnel.sh stop
+
+tunnel-restart:
+	bash $(MAKEFILE_DIR)/cloudflare-tunnel.sh restart
+
+tunnel-status:
+	bash $(MAKEFILE_DIR)/cloudflare-tunnel.sh status
+
+tunnel-logs:
+	bash $(MAKEFILE_DIR)/cloudflare-tunnel.sh logs
+
+tunnel-render-config:
+	bash $(MAKEFILE_DIR)/cloudflare-tunnel.sh render-config
