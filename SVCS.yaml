@@ -24,3 +24,4 @@ services:
   overrides:
     gateway:
       enabled: true
+    image: calavelas/case-e2e-pr-test-20260304000108:5954af3

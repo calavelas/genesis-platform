@@ -1,6 +1,6 @@
 image:
   repository: calavelas/case-e2e-pr-test-20260304000108
-  tag: 0.1.0
+  tag: 5954af3
   pullPolicy: IfNotPresent
 
 service:
