@@ -10,7 +10,7 @@ on:
       - 'ENDR/PLEX/**'
       - 'ENDR/TARS/**'
       - 'ENDR/pyproject.toml'
-      - 'ENDR/Dockerfile'
+      - 'ENDR/PLEX/Dockerfile'
       - 'ENDR/CASE/Dockerfile'
       - 'ENDR.yaml'
       - 'SVCS.yaml'
@@ -23,7 +23,7 @@ on:
       - 'ENDR/PLEX/**'
       - 'ENDR/TARS/**'
       - 'ENDR/pyproject.toml'
-      - 'ENDR/Dockerfile'
+      - 'ENDR/PLEX/Dockerfile'
       - 'ENDR/CASE/Dockerfile'
       - 'ENDR.yaml'
       - 'SVCS.yaml'
@@ -79,7 +79,7 @@ jobs:
           - name: endr-api
             image_name: endr-api
             context: .
-            dockerfile: ENDR/Dockerfile
+            dockerfile: ENDR/PLEX/Dockerfile
           - name: endr-case
             image_name: endr-case
             context: ENDR/CASE
@@ -165,8 +165,8 @@ jobs:
           owner = os.environ["IMAGE_OWNER"].strip()
           tag = os.environ["IMAGE_TAG"].strip()
           charts = {
-            Path("ENDR/charts/endr-api/values.yaml"): "endr-api",
-            Path("ENDR/charts/endr-case/values.yaml"): "endr-case",
+            Path("ENDR/PLEX/chart/values.yaml"): "endr-api",
+            Path("ENDR/CASE/chart/values.yaml"): "endr-case",
           }
 
           for chart_path, image_name in charts.items():
@@ -182,7 +182,7 @@ jobs:
           set -euo pipefail
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add ENDR/charts/endr-api/values.yaml ENDR/charts/endr-case/values.yaml
+          git add ENDR/PLEX/chart/values.yaml ENDR/CASE/chart/values.yaml
           if git diff --cached --quiet; then
             echo "No chart updates to commit."
             exit 0
@@ -196,5 +196,5 @@ jobs:
             echo "### ENDR FE/BE image publish summary"
             echo ""
             echo "- Tag: \`${{ needs.meta.outputs.tag }}\`"
-            echo "- Updated charts: \`ENDR/charts/endr-api\`, \`ENDR/charts/endr-case\`"
+            echo "- Updated charts: \`ENDR/PLEX/chart\`, \`ENDR/CASE/chart\`"
           } >> "$GITHUB_STEP_SUMMARY"
