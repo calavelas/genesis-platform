@@ -6,6 +6,7 @@ on:
       - main
     paths:
       - 'SVCS/**'
+      - 'SVCS.yaml'
       - '.github/workflows/svcs-build.yml'
       - 'ENDR/TARS/TARS.py'
   workflow_run:

@@ -14,21 +14,31 @@ on:
       - opened
       - synchronize
       - reopened
+      - closed
     paths:
       - 'ENDR.yaml'
       - 'SVCS.yaml'
       - 'ENDR/TARS/**'
       - '.github/workflows/tars-build.yml'
   workflow_dispatch:
+    inputs:
+      write_worktree:
+        description: "Run reconcile in generate mode"
+        required: false
+        type: boolean
+        default: false
 
 permissions:
+  actions: write
   contents: write
   pull-requests: write
 
 jobs:
   TARS-Reconcile:
     name: Services Reconcile
-    if: ${{ github.event_name != 'push' || github.actor != 'github-actions[bot]' }}
+    if: >
+      (github.event_name != 'pull_request' || github.event.action != 'closed') &&
+      (github.event_name != 'push' || github.actor != 'github-actions[bot]')
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -89,6 +99,9 @@ jobs:
         run: |
           set -euo pipefail
           if [ "${{ github.event_name }}" = "push" ] && [ "${{ github.ref_name }}" = "main" ] && [ "${{ github.actor }}" != "github-actions[bot]" ]; then
+            echo "write_worktree=true" >> "$GITHUB_OUTPUT"
+            echo "mode=generate" >> "$GITHUB_OUTPUT"
+          elif [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ "${{ github.ref_name }}" = "main" ] && [ "${{ github.event.inputs.write_worktree || 'false' }}" = "true" ]; then
             echo "write_worktree=true" >> "$GITHUB_OUTPUT"
             echo "mode=generate" >> "$GITHUB_OUTPUT"
           else
@@ -265,6 +278,7 @@ jobs:
       - TARS-Reconcile
     if: >
       github.event_name == 'pull_request' &&
+      github.event.action != 'closed' &&
       github.event.pull_request.base.ref == 'main' &&
       github.event.pull_request.head.repo.full_name == github.repository &&
       (
@@ -276,16 +290,63 @@ jobs:
     steps:
       - name: Approve and enable auto-merge for CASE PR
         uses: actions/github-script@v7
+        env:
+          DELETE_SOURCE_BRANCH_ON_MERGE: ${{ vars.TARS_DELETE_SOURCE_BRANCH_ON_MERGE != 'false' }}
         with:
           script: |
             const pr = context.payload.pull_request;
             const { owner, repo } = context.repo;
+            const sourceBranch = pr.head.ref;
+            const shouldDeleteSourceBranch = process.env.DELETE_SOURCE_BRANCH_ON_MERGE === "true";
 
             const body = String(pr.body || "");
             if (!body.includes("Registered by IDP API.")) {
               core.notice("Skipping CASE auto-accept: PR body marker not found.");
               return;
             }
+
+            const errorMessage = (error) => (error && error.message ? error.message : String(error));
+            const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+            const deleteMergedSourceBranch = async () => {
+              if (!shouldDeleteSourceBranch) {
+                core.notice("Skipping branch deletion because vars.TARS_DELETE_SOURCE_BRANCH_ON_MERGE=false");
+                return;
+              }
+              try {
+                await github.rest.git.deleteRef({
+                  owner,
+                  repo,
+                  ref: `heads/${sourceBranch}`,
+                });
+                core.notice(`Deleted merged branch: ${sourceBranch}`);
+              } catch (error) {
+                if (error && (error.status === 404 || error.status === 422)) {
+                  core.notice(`Branch ${sourceBranch} was already absent.`);
+                  return;
+                }
+                core.warning(`Failed to delete merged branch ${sourceBranch}: ${errorMessage(error)}`);
+              }
+            };
+
+            const dispatchGenerateRun = async (mergedSha) => {
+              try {
+                await github.rest.actions.createWorkflowDispatch({
+                  owner,
+                  repo,
+                  workflow_id: "tars-build.yml",
+                  ref: "main",
+                  inputs: {
+                    write_worktree: "true",
+                  },
+                });
+                core.notice(
+                  `Dispatched TARS generate run on main after merge of PR #${pr.number}${mergedSha ? ` (sha ${mergedSha})` : ""}.`
+                );
+              } catch (error) {
+                core.warning(`Failed to dispatch post-merge TARS run: ${errorMessage(error)}`);
+              }
+            };
 
             const files = await github.paginate(github.rest.pulls.listFiles, {
               owner,
@@ -311,10 +372,9 @@ jobs:
               });
               core.notice(`Approved PR #${pr.number}.`);
             } catch (error) {
-              core.warning(`Approval step failed: ${error.message}`);
+              core.warning(`Approval step failed: ${errorMessage(error)}`);
             }
 
-            const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
             let latestPr = null;
             for (let attempt = 0; attempt < 8; attempt += 1) {
               const result = await github.rest.pulls.get({
@@ -335,12 +395,14 @@ jobs:
 
             if (latestPr.merged) {
               core.notice(`PR #${pr.number} is already merged.`);
+              await deleteMergedSourceBranch();
               return;
             }
 
             let mergedNow = false;
+            let mergedSha = null;
             try {
-              await github.rest.pulls.merge({
+              const mergeResult = await github.rest.pulls.merge({
                 owner,
                 repo,
                 pull_number: pr.number,
@@ -348,12 +410,15 @@ jobs:
                 sha: latestPr.head.sha,
               });
               mergedNow = true;
+              mergedSha = mergeResult.data.sha || null;
               core.notice(`Merged PR #${pr.number} via direct merge.`);
             } catch (error) {
-              core.notice(`Direct merge not ready for PR #${pr.number}: ${error.message}`);
+              core.notice(`Direct merge not ready for PR #${pr.number}: ${errorMessage(error)}`);
             }
 
             if (mergedNow) {
+              await dispatchGenerateRun(mergedSha);
+              await deleteMergedSourceBranch();
               return;
             }
 
@@ -382,6 +447,63 @@ jobs:
               core.notice(`Enabled auto-merge for PR #${pr.number}.`);
             } catch (error) {
               throw new Error(
-                `Unable to merge PR #${pr.number}. Direct merge failed and auto-merge could not be enabled: ${error.message}`
+                `Unable to merge PR #${pr.number}. Direct merge failed and auto-merge could not be enabled: ${errorMessage(error)}`
               );
             }
+
+            for (let attempt = 0; attempt < 45; attempt += 1) {
+              await sleep(2000);
+              const refreshed = await github.rest.pulls.get({
+                owner,
+                repo,
+                pull_number: pr.number,
+              });
+              if (refreshed.data.merged) {
+                core.notice(`PR #${pr.number} merged after enabling auto-merge.`);
+                await dispatchGenerateRun(refreshed.data.merge_commit_sha || null);
+                await deleteMergedSourceBranch();
+                return;
+              }
+            }
+
+            core.notice(`Auto-merge enabled for PR #${pr.number}; merged-branch cleanup will run on pull_request.closed event in this workflow.`);
+
+  TARS-Cleanup-Branch:
+    name: Cleanup Merged Source Branch
+    if: >
+      github.event_name == 'pull_request' &&
+      github.event.action == 'closed' &&
+      github.event.pull_request.merged == true &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      (
+        startsWith(github.event.pull_request.title, 'TARS :') ||
+        startsWith(github.event.pull_request.title, 'CASE : Adding service :') ||
+        startsWith(github.event.pull_request.head.ref, 'idp/tars-svcs-check') ||
+        startsWith(github.event.pull_request.head.ref, 'case/')
+      )
+    runs-on: ubuntu-latest
+    steps:
+      - name: Delete merged source branch
+        if: ${{ vars.TARS_DELETE_SOURCE_BRANCH_ON_MERGE != 'false' }}
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const branch = context.payload.pull_request.head.ref;
+            try {
+              await github.rest.git.deleteRef({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                ref: `heads/${branch}`,
+              });
+              core.notice(`Deleted merged branch: ${branch}`);
+            } catch (error) {
+              if (error && (error.status === 404 || error.status === 422)) {
+                core.notice(`Merged branch already absent: ${branch}`);
+                return;
+              }
+              throw error;
+            }
+
+      - name: Skip branch deletion (flag disabled)
+        if: ${{ vars.TARS_DELETE_SOURCE_BRANCH_ON_MERGE == 'false' }}
+        run: echo "Skipping branch deletion because vars.TARS_DELETE_SOURCE_BRANCH_ON_MERGE=false"
