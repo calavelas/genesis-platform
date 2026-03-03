@@ -396,7 +396,7 @@ jobs:
           } >> "$GITHUB_STEP_SUMMARY"
 
   trigger-svcs-build:
-    name: Trigger SVCS Build
+    name: SVCS Build
     needs:
       - reconcile
       - update
