@@ -75,3 +75,15 @@ services:
   overrides:
     gateway:
       enabled: true
+- name: caseflow221041
+  namespace: demo
+  environments:
+  - mac-lab
+  generator:
+    service:
+      template: python-fastapi
+    gitops:
+      template: helm-service
+  overrides:
+    gateway:
+      enabled: true
