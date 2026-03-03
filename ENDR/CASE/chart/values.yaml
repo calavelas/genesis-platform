@@ -1,7 +1,7 @@
 replicaCount: 1
 image:
   repository: calavelas/case
-  tag: 6ec51f5
+  tag: 431336e
   pullPolicy: IfNotPresent
 service:
   type: ClusterIP
@@ -11,15 +11,15 @@ httpRoute:
   enabled: true
   name: case-route
   hostnames:
-    - case.k8s.local
+  - case.k8s.local
   pathPrefix: /
   parentRefs:
-    - name: gateway
-      namespace: gateway
-      sectionName: http
-    - name: gateway
-      namespace: gateway
-      sectionName: https
+  - name: gateway
+    namespace: gateway
+    sectionName: http
+  - name: gateway
+    namespace: gateway
+    sectionName: https
 env:
   ENDR_API_URL: http://plex.endr.svc.cluster.local
   NEXT_PUBLIC_ENDR_API_URL: http://plex.endr.svc.cluster.local
