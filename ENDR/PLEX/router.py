@@ -4,6 +4,13 @@ from pathlib import Path
 
 from TARS.scaffold.service import CreateServiceRequest, CreateServiceResponse, create_service
 from PLEX.plex import PlexUniverse, build_plex_universe, load_plex_configs
+from PLEX.transactions import (
+    CaseHistoryResponse,
+    TransactionStatusResponse,
+    get_case_history,
+    get_case_transaction_status,
+    record_case_submission,
+)
 
 router = APIRouter()
 
@@ -241,6 +248,55 @@ def create_service_from_portal(payload: CreateServiceFromPortalRequest) -> Creat
         branchName=payload.branchName.strip() if payload.branchName and payload.branchName.strip() else None,
     )
     try:
-        return create_service(request)
+        response = create_service(request)
+        if (
+            not payload.dryRun
+            and response.pullRequestNumber
+            and response.pullRequestNumber > 0
+            and response.pullRequestUrl
+        ):
+            # Persistence should not block service creation if state store is unavailable.
+            try:
+                record_case_submission(
+                    service_name=response.serviceName,
+                    pull_request_number=response.pullRequestNumber,
+                    pull_request_url=response.pullRequestUrl,
+                    branch_name=response.branchName,
+                )
+            except Exception:  # noqa: BLE001
+                pass
+        return response
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@router.get("/api/plex/history", response_model=CaseHistoryResponse)
+def get_case_history_from_portal(
+    limit: int = 50,
+    service: str = "",
+    author: str = "",
+    prState: str = "all",
+    pipelineStatus: str = "all",
+) -> CaseHistoryResponse:
+    try:
+        return get_case_history(
+            limit=limit,
+            service_filter=service,
+            author_filter=author,
+            pr_state=prState,
+            pipeline_status=pipelineStatus,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except Exception as exc:  # noqa: BLE001
+        raise HTTPException(status_code=502, detail=f"unable to load CASE history: {exc}") from exc
+
+
+@router.get("/api/plex/transactions/{pullRequestNumber}", response_model=TransactionStatusResponse)
+def get_case_transaction_from_portal(pullRequestNumber: int) -> TransactionStatusResponse:
+    try:
+        return get_case_transaction_status(pullRequestNumber)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except Exception as exc:  # noqa: BLE001
+        raise HTTPException(status_code=502, detail=f"unable to resolve transaction status: {exc}") from exc

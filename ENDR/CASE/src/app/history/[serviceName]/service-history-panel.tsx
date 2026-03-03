@@ -45,6 +45,15 @@ interface TransactionWorkflowRun {
   updatedAt: string;
 }
 
+interface TransactionTimelineEvent {
+  id: string;
+  title: string;
+  status: string;
+  timestamp: string | null;
+  detail: string;
+  url: string | null;
+}
+
 interface TransactionStatusResult {
   pullRequest: {
     number: number;
@@ -71,6 +80,8 @@ interface TransactionStatusResult {
       svcsBuildDeploy: TransactionWorkflowRun | null;
     };
   };
+  timeline: TransactionTimelineEvent[];
+  persistedAt?: string | null;
 }
 
 interface ServiceHistoryPanelProps {
@@ -126,24 +137,26 @@ function prLabel(item: CaseHistoryItem): string {
   return item.state || "unknown";
 }
 
-function pipelineTone(status: TransactionStatusResult["pipeline"]["status"]): "good" | "warn" | "bad" | "neutral" {
-  if (status === "success") {
+function pipelineTone(status: string): "good" | "warn" | "bad" | "neutral" {
+  const normalized = status.trim().toLowerCase();
+  if (normalized === "success") {
     return "good";
   }
-  if (status === "running" || status === "waiting-merge") {
+  if (normalized === "running" || normalized === "waiting-merge") {
     return "warn";
   }
-  if (status === "failed") {
+  if (normalized === "failed") {
     return "bad";
   }
   return "neutral";
 }
 
-function formatPipelineStatus(status: TransactionStatusResult["pipeline"]["status"]): string {
-  if (status === "waiting-merge") {
+function formatPipelineStatus(status: string): string {
+  const normalized = status.trim().toLowerCase();
+  if (normalized === "waiting-merge") {
     return "Waiting Merge";
   }
-  return status.charAt(0).toUpperCase() + status.slice(1);
+  return normalized.charAt(0).toUpperCase() + normalized.slice(1);
 }
 
 function formatWorkflowRunStatus(run: TransactionWorkflowRun | null): string {
@@ -384,6 +397,24 @@ export function ServiceHistoryPanel({ serviceName }: ServiceHistoryPanelProps) {
                 <ul className="transaction-notifications">
                   {latestTransaction.pipeline.notifications.map((note) => (
                     <li key={note}>{note}</li>
+                  ))}
+                </ul>
+              )}
+              {latestTransaction.timeline.length > 0 && (
+                <ul className="history-timeline-list">
+                  {latestTransaction.timeline.map((event) => (
+                    <li key={event.id}>
+                      <span className={`status-pill tone-${pipelineTone(event.status)}`}>{event.title}</span>
+                      <span>{event.detail}</span>
+                      <span>{formatTimestamp(event.timestamp)}</span>
+                      {event.url ? (
+                        <a className="entity-link" href={event.url} target="_blank" rel="noreferrer">
+                          Open
+                        </a>
+                      ) : (
+                        <span className="embed-note">n/a</span>
+                      )}
+                    </li>
                   ))}
                 </ul>
               )}

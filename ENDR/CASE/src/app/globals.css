@@ -987,6 +987,73 @@ code {
   text-align: right;
 }
 
+.history-filter-panel {
+  display: grid;
+  gap: 0.7rem;
+}
+
+.history-filter-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.62rem;
+}
+
+.history-filter-grid label {
+  display: grid;
+  gap: 0.3rem;
+  font-size: 0.78rem;
+  color: #d4d4d9;
+}
+
+.history-filter-grid select {
+  width: 100%;
+  border: 1px solid #3b3b42;
+  border-radius: 0.5rem;
+  background: #18181c;
+  color: #f2f2f4;
+  padding: 0.48rem 0.55rem;
+  font-size: 0.83rem;
+}
+
+.history-table {
+  min-width: 1320px;
+}
+
+.history-link-set {
+  display: flex;
+  align-items: center;
+  gap: 0.38rem;
+  flex-wrap: wrap;
+}
+
+.history-link-set .embed-note {
+  font-size: 0.7rem;
+  margin: 0;
+}
+
+.history-timeline-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border: 1px solid #36363e;
+  border-radius: 0.52rem;
+  overflow: hidden;
+}
+
+.history-timeline-list li {
+  display: grid;
+  grid-template-columns: minmax(140px, 180px) minmax(240px, 1fr) minmax(140px, 180px) auto;
+  gap: 0.45rem;
+  align-items: center;
+  padding: 0.5rem 0.58rem;
+  border-top: 1px solid #34343b;
+  font-size: 0.75rem;
+}
+
+.history-timeline-list li:first-child {
+  border-top: 0;
+}
+
 @media (max-width: 1320px) {
   .portal-layout {
     grid-template-columns: 220px 1fr;
@@ -1044,6 +1111,14 @@ code {
 
   .transaction-workflows li span:last-child {
     text-align: left;
+  }
+
+  .history-filter-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .history-timeline-list li {
+    grid-template-columns: 1fr;
   }
 
   .argocd-frame-viewport {
