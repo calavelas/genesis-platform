@@ -5,7 +5,8 @@ on:
     branches:
       - main
     paths:
-      - 'SVCS/**'
+      - 'SVCS/*/**'
+      - '!SVCS/*/chart/**'
       - '.github/workflows/svcs-build.yml'
   workflow_run:
     workflows:
@@ -14,7 +15,6 @@ on:
       - completed
     branches:
       - main
-  workflow_dispatch:
 
 permissions:
   contents: write
@@ -22,20 +22,6 @@ permissions:
 jobs:
   services-change-discovery:
     name: Services Change Discovery
-    if: >
-      (
-        github.event_name == 'push' &&
-        (
-          github.actor != 'github-actions[bot]' ||
-          !startsWith(github.event.head_commit.message || '', 'TARS : Persist image tag ')
-        )
-      ) ||
-      github.event_name == 'workflow_dispatch' ||
-      (
-        github.event_name == 'workflow_run' &&
-        github.event.workflow_run.conclusion == 'success' &&
-        github.event.workflow_run.head_branch == 'main'
-      )
     runs-on: ubuntu-latest
     outputs:
       matrix: ${{ steps.discover.outputs.matrix }}
@@ -69,14 +55,6 @@ jobs:
         run: |
           set -euo pipefail
 
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            echo "services=" >> "$GITHUB_OUTPUT"
-            echo "service_count=0" >> "$GITHUB_OUTPUT"
-            echo "before_sha=" >> "$GITHUB_OUTPUT"
-            echo "after_sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-
           if [ "${{ github.event_name }}" = "workflow_run" ]; then
             BEFORE="${{ github.event.workflow_run.head_sha }}"
             AFTER="$(git rev-parse HEAD)"
@@ -95,7 +73,7 @@ jobs:
             CHANGED_FILES="$(git diff --name-only "$BEFORE" "$AFTER")"
           fi
 
-          SERVICES="$(printf "%s\n" "$CHANGED_FILES" | awk -F/ '$1=="SVCS" && $2!="" && $2!="examples" && ($3=="app" || $3=="src" || $3=="cmd" || $3=="internal" || $3=="pkg" || $3=="lib" || $3=="Dockerfile" || $3=="requirements.txt" || $3=="pyproject.toml" || $3=="package.json" || $3=="package-lock.json" || $3=="go.mod" || $3=="go.sum" || $3=="Cargo.toml" || $3=="Cargo.lock") { print $2 }' | sort -u | paste -sd, -)"
+          SERVICES="$(printf "%s\n" "$CHANGED_FILES" | awk -F/ '$1=="SVCS" && $2!="" && $2!="examples" && NF>=3 && $3!="chart" { print $2 }' | sort -u | paste -sd, -)"
 
           COUNT=0
           if [ -n "$SERVICES" ]; then
@@ -133,20 +111,77 @@ jobs:
 
       - name: Discover changed services
         id: discover
+        env:
+          BEFORE_SHA: ${{ steps.detect_source_services.outputs.before_sha }}
+          AFTER_SHA: ${{ steps.detect_source_services.outputs.after_sha }}
+          DETECTED_SERVICES: ${{ steps.detect_source_services.outputs.services }}
+          DOCKERHUB_OWNER: ${{ secrets.DOCKERHUB_USERNAME }}
         run: |
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            python3 ENDR/TARS/TARS.py discover-changed-services \
-              --repo-root . \
-              --all-services \
-              --registry dockerhub \
-              --image-owner "${{ secrets.DOCKERHUB_USERNAME }}"
+          set -euo pipefail
+
+          if [ -z "${{ steps.detect_source_services.outputs.services }}" ]; then
+            echo '{"include":[],"skipped":[]}'
+            {
+              echo 'matrix={"include":[]}'
+              echo 'has_services=false'
+              echo 'count=0'
+            } >> "$GITHUB_OUTPUT"
           else
-            python3 ENDR/TARS/TARS.py discover-changed-services \
-              --repo-root . \
-              --before "${{ steps.detect_source_services.outputs.before_sha }}" \
-              --after "${{ steps.detect_source_services.outputs.after_sha }}" \
-              --registry dockerhub \
-              --image-owner "${{ secrets.DOCKERHUB_USERNAME }}"
+            python3 - <<'PY'
+            import json
+            import os
+            import subprocess
+            import sys
+
+            detected = {
+                item.strip()
+                for item in os.environ.get("DETECTED_SERVICES", "").split(",")
+                if item.strip()
+            }
+
+            cmd = [
+                sys.executable,
+                "ENDR/TARS/TARS.py",
+                "discover-changed-services",
+                "--repo-root",
+                ".",
+                "--before",
+                os.environ.get("BEFORE_SHA", ""),
+                "--after",
+                os.environ.get("AFTER_SHA", ""),
+                "--registry",
+                "dockerhub",
+                "--image-owner",
+                os.environ["DOCKERHUB_OWNER"],
+            ]
+
+            child_env = os.environ.copy()
+            child_env.pop("GITHUB_OUTPUT", None)
+            completed = subprocess.run(  # noqa: S603
+                cmd,
+                check=True,
+                capture_output=True,
+                text=True,
+                env=child_env,
+            )
+            payload = json.loads((completed.stdout or "{}").strip() or "{}")
+            include = [
+                item
+                for item in payload.get("include", [])
+                if str(item.get("service", "")).strip() in detected
+            ]
+            skipped = payload.get("skipped", [])
+            print(json.dumps({"include": include, "skipped": skipped}, indent=2))
+
+            with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as handle:
+                handle.write(f"matrix={json.dumps({'include': include}, separators=(',', ':'))}\n")
+                handle.write(f"has_services={'true' if include else 'false'}\n")
+                handle.write(f"count={len(include)}\n")
+                if skipped:
+                    handle.write("skipped<<EOF\n")
+                    handle.write("\n".join(skipped))
+                    handle.write("\nEOF\n")
+            PY
           fi
 
       - name: Summary
