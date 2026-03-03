@@ -23,6 +23,7 @@ services:
   overrides:
     gateway:
       enabled: true
+    image: calavelas/cooper:474037d
 - name: mann
   namespace: demo
   environments:
@@ -35,3 +36,4 @@ services:
   overrides:
     gateway:
       enabled: true
+    image: calavelas/mann:474037d
