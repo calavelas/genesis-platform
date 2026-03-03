@@ -223,18 +223,35 @@ def _service_entry_dict(service: ServiceEntry) -> dict[str, object]:
     return entry
 
 
-def _render_updated_services_config(services_config_path: Path, service: ServiceEntry) -> bytes:
+def _render_updated_services_config_bytes(raw_services_config: bytes, service: ServiceEntry) -> bytes:
     try:
         import yaml
     except ModuleNotFoundError as exc:
         raise RuntimeError("PyYAML is required for services config updates") from exc
 
-    raw_data = yaml.safe_load(services_config_path.read_text(encoding="utf-8")) or {}
+    raw_data = yaml.safe_load(raw_services_config.decode("utf-8")) or {}
+    if not isinstance(raw_data, dict):
+        raise ValueError("SVCS.yaml root must be a mapping")
+
     existing_services = raw_data.get("services", [])
+    if not isinstance(existing_services, list):
+        raise ValueError("SVCS.yaml services must be a list")
+
+    for existing in existing_services:
+        if isinstance(existing, dict) and existing.get("name") == service.name:
+            raise ValueError(f"service already exists in SVCS.yaml: {service.name}")
+
     existing_services.append(_service_entry_dict(service))
     raw_data["services"] = existing_services
     rendered = yaml.safe_dump(raw_data, sort_keys=False, allow_unicode=False)
     return rendered.encode("utf-8")
+
+
+def _render_updated_services_config(services_config_path: Path, service: ServiceEntry) -> bytes:
+    return _render_updated_services_config_bytes(
+        services_config_path.read_bytes(),
+        service,
+    )
 
 
 def _collect_commit_files(
@@ -349,7 +366,25 @@ def create_service(request: CreateServiceRequest) -> CreateServiceResponse:
         relative_services_config = services_config_path.relative_to(repo_root).as_posix()
     except ValueError as exc:
         raise ValueError("SVCS.yaml must be inside repository root for PR workflow") from exc
-    commit_files[relative_services_config] = _render_updated_services_config(services_config_path, service)
+
+    github_token = os.environ.get("GITHUB_TOKEN")
+    if not request.dryRun and not github_token:
+        raise ValueError("GITHUB_TOKEN is required when dryRun=false")
+
+    if request.dryRun:
+        commit_files[relative_services_config] = _render_updated_services_config(services_config_path, service)
+    else:
+        github_client = GitHubClient(
+            token=github_token or "",
+            owner=idp_config.config.git.owner,
+            repo=idp_config.config.git.repo,
+        )
+        base_branch = idp_config.config.git.defaultBranch
+        remote_services_config = github_client.get_file_content(base_branch, relative_services_config)
+        if remote_services_config is not None:
+            commit_files[relative_services_config] = _render_updated_services_config_bytes(remote_services_config, service)
+        else:
+            commit_files[relative_services_config] = _render_updated_services_config(services_config_path, service)
 
     preview_config_file = staging_root / "SVCS.yaml"
     preview_config_file.write_bytes(commit_files[relative_services_config])
@@ -367,13 +402,9 @@ def create_service(request: CreateServiceRequest) -> CreateServiceResponse:
     if request.dryRun:
         return response
 
-    github_token = os.environ.get("GITHUB_TOKEN")
-    if not github_token:
-        raise ValueError("GITHUB_TOKEN is required when dryRun=false")
-
     branch_name = request.branchName or _build_branch_name(service.name)
     github_client = GitHubClient(
-        token=github_token,
+        token=github_token or "",
         owner=idp_config.config.git.owner,
         repo=idp_config.config.git.repo,
     )

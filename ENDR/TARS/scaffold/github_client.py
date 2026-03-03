@@ -123,6 +123,30 @@ class GitHubClient:
         except GitHubAPIError:
             return None
 
+    def get_file_content(self, branch: str, file_path: str) -> bytes | None:
+        encoded_path = parse.quote(file_path, safe="/")
+        path = f"/repos/{self.owner}/{self.repo}/contents/{encoded_path}?ref={parse.quote(branch, safe='')}"
+        try:
+            data = self._request("GET", path)
+        except GitHubAPIError as exc:
+            if "error 404" in str(exc):
+                return None
+            raise
+
+        if not isinstance(data, dict):
+            raise GitHubAPIError(f"unexpected content response for {file_path}")
+
+        content = data.get("content")
+        encoding = data.get("encoding")
+        if not isinstance(content, str) or encoding != "base64":
+            raise GitHubAPIError(f"unexpected encoding for {file_path}: {encoding}")
+
+        normalized = content.replace("\n", "")
+        try:
+            return base64.b64decode(normalized.encode("ascii"))
+        except Exception as exc:  # noqa: BLE001
+            raise GitHubAPIError(f"invalid base64 payload for {file_path}") from exc
+
     def create_or_update_file(
         self,
         branch: str,

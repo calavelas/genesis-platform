@@ -591,6 +591,154 @@ code {
   border-color: #434348;
 }
 
+.service-create-panel {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.panel-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem;
+}
+
+.tab-row {
+  display: flex;
+  gap: 0.45rem;
+  flex-wrap: wrap;
+}
+
+.tab-button {
+  border: 1px solid #3a3a40;
+  border-radius: 0.55rem;
+  background: #242429;
+  color: #d9d9de;
+  padding: 0.36rem 0.68rem;
+  font-size: 0.78rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.tab-button:hover {
+  background: #2d2d33;
+}
+
+.tab-button.active {
+  border-color: #4e4e58;
+  background: #33333b;
+  color: #ffffff;
+}
+
+.service-form {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.6rem;
+}
+
+.service-form label {
+  display: grid;
+  gap: 0.3rem;
+  font-size: 0.78rem;
+  color: #d4d4d9;
+}
+
+.service-form input,
+.service-form select {
+  width: 100%;
+  border: 1px solid #3b3b42;
+  border-radius: 0.5rem;
+  background: #18181c;
+  color: #f2f2f4;
+  padding: 0.48rem 0.55rem;
+  font-size: 0.83rem;
+}
+
+.field-group {
+  border: 1px solid #35353b;
+  border-radius: 0.55rem;
+  padding: 0.58rem;
+  margin: 0;
+  display: grid;
+  gap: 0.48rem;
+}
+
+.field-group legend {
+  color: var(--muted);
+  font-size: 0.75rem;
+  padding: 0 0.24rem;
+}
+
+.check-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.42rem;
+}
+
+.check-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.42rem;
+  color: #ececf0;
+}
+
+.check-item input {
+  width: auto;
+  margin: 0;
+}
+
+.form-actions {
+  grid-column: 1 / -1;
+  display: flex;
+  justify-content: flex-start;
+}
+
+.form-actions .open-link {
+  cursor: pointer;
+}
+
+.form-actions .open-link:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.form-error {
+  margin: 0;
+  color: #f3acb4;
+  font-size: 0.78rem;
+}
+
+.service-form .embed-note,
+.service-form .form-error,
+.service-form .check-item {
+  grid-column: 1 / -1;
+}
+
+.transaction-list {
+  display: grid;
+  gap: 0.55rem;
+}
+
+.transaction-card {
+  border: 1px solid #323238;
+  border-radius: 0.64rem;
+  background: #1f1f24;
+  padding: 0.62rem;
+  display: grid;
+  gap: 0.45rem;
+}
+
+.transaction-card header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.48rem;
+}
+
+.transaction-kv {
+  margin-top: 0.1rem;
+}
+
 @media (max-width: 1320px) {
   .portal-layout {
     grid-template-columns: 220px 1fr;
@@ -637,5 +785,10 @@ code {
   .status-list li {
     align-items: flex-start;
     flex-direction: column;
+  }
+
+  .service-form,
+  .check-grid {
+    grid-template-columns: 1fr;
   }
 }

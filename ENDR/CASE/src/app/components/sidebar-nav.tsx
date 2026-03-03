@@ -11,12 +11,21 @@ interface NavItem {
 const NAV_ITEMS: NavItem[] = [
   { href: "/", label: "Home" },
   { href: "/services", label: "Services" },
+  { href: "/services/new", label: "Create Service" },
   { href: "/argocd", label: "ArgoCD" }
 ];
 
 function isActive(pathname: string, href: string): boolean {
   if (href === "/") {
     return pathname === "/";
+  }
+
+  if (href === "/services/new") {
+    return pathname === "/services/new";
+  }
+
+  if (href === "/services") {
+    return pathname === "/services" || (pathname.startsWith("/services/") && !pathname.startsWith("/services/new"));
   }
 
   return pathname === href || pathname.startsWith(`${href}/`);
