@@ -27,7 +27,7 @@ export interface PlexUniverse {
 }
 
 const FALLBACK_API = "http://127.0.0.1:8000";
-const FALLBACK_EMBED_URL = "https://argocd.k8s.local/applications";
+const FALLBACK_EMBED_URL = "https://argocd.calavelas.net/applications";
 const FALLBACK_GITHUB_REPO_URL = "https://github.com/calavelas/ENDR";
 const FALLBACK_GITHUB_BRANCH = "main";
 

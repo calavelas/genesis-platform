@@ -23,8 +23,8 @@ httpRoute:
 env:
   ENDR_API_URL: http://plex.endr.svc.cluster.local
   NEXT_PUBLIC_ENDR_API_URL: http://plex.endr.svc.cluster.local
-  CASE_ARGOCD_EMBED_URL: https://argocd.k8s.local/applications
-  NEXT_PUBLIC_CASE_ARGOCD_EMBED_URL: https://argocd.k8s.local/applications
+  CASE_ARGOCD_EMBED_URL: https://argocd.calavelas.net/applications
+  NEXT_PUBLIC_CASE_ARGOCD_EMBED_URL: https://argocd.calavelas.net/applications
   CASE_GITHUB_REPO_URL: https://github.com/calavelas/ENDR
   NEXT_PUBLIC_CASE_GITHUB_REPO_URL: https://github.com/calavelas/ENDR
   CASE_GITHUB_BRANCH: main
