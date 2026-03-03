@@ -6,10 +6,12 @@ on:
       - opened
       - synchronize
       - reopened
-      - closed
     paths:
       - 'ENDR.yaml'
       - 'SVCS.yaml'
+  pull_request_target:
+    types:
+      - closed
 
 concurrency:
   group: tars-pr-${{ github.event.pull_request.number }}
@@ -256,6 +258,7 @@ jobs:
   cleanup-case-branch:
     name: Cleanup CASE Branch
     if: >
+      github.event_name == 'pull_request_target' &&
       github.event.action == 'closed' &&
       github.event.pull_request.merged == true &&
       github.event.pull_request.base.ref == 'main' &&
