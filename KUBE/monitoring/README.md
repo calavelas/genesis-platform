@@ -3,7 +3,8 @@
 Monitoring stack notes for local cluster.
 
 Current default:
-- `kube-prometheus-stack` via Helm (installed by `SCPT/bootstrap.sh`)
+- monitoring stack is not installed by default bootstrap
+- install and manage monitoring via GitOps manifests when needed
 
 Access:
-- Grafana is exposed locally through `make -f SCPT/Makefile port-forward`.
+- if monitoring is installed, use `make -f SCPT/Makefile port-forward-grafana`.

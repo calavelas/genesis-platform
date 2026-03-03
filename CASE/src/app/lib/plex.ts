@@ -1,0 +1,216 @@
+type NodeKind = "core" | "service";
+
+export type NodeTone = "good" | "warn" | "bad" | "neutral";
+
+export interface PlexNode {
+  name: string;
+  kind: NodeKind;
+  namespace: string;
+  syncStatus: string;
+  healthStatus: string;
+  sourcePath: string;
+  revision: string;
+  deployedAt: string | null;
+  imageTag: string | null;
+  orbitBand: number;
+}
+
+export interface PlexUniverse {
+  generatedAt: string;
+  dataSource: string;
+  galaxyName: string;
+  clusterPath: string;
+  servicesPath: string;
+  warnings: string[];
+  coreApps: PlexNode[];
+  services: PlexNode[];
+}
+
+const FALLBACK_API = "http://127.0.0.1:8000";
+const FALLBACK_EMBED_URL = "https://127.0.0.1:18443/applications";
+const FALLBACK_GITHUB_REPO_URL = "https://github.com/calavelas/ENDR";
+const FALLBACK_GITHUB_BRANCH = "main";
+
+function normalizeApiBase(base: string): string {
+  return base.endsWith("/") ? base.slice(0, -1) : base;
+}
+
+export function resolveApiBase(): string {
+  const base = process.env.ENDR_API_URL || process.env.NEXT_PUBLIC_ENDR_API_URL || FALLBACK_API;
+  return normalizeApiBase(base);
+}
+
+export function resolveArgoEmbedUrl(): string {
+  const value = process.env.CASE_ARGOCD_EMBED_URL || process.env.NEXT_PUBLIC_ARGOCD_EMBED_URL || FALLBACK_EMBED_URL;
+  return value.trim() || FALLBACK_EMBED_URL;
+}
+
+export function resolveGithubRepoUrl(): string {
+  const value =
+    process.env.CASE_GITHUB_REPO_URL || process.env.NEXT_PUBLIC_CASE_GITHUB_REPO_URL || process.env.NEXT_PUBLIC_GITHUB_REPO_URL;
+  return value?.trim() || FALLBACK_GITHUB_REPO_URL;
+}
+
+export function resolveGithubBranch(): string {
+  const value = process.env.CASE_GITHUB_BRANCH || process.env.NEXT_PUBLIC_CASE_GITHUB_BRANCH;
+  return value?.trim() || FALLBACK_GITHUB_BRANCH;
+}
+
+export function buildArgoApplicationUrl(embedUrl: string, appName: string): string {
+  const name = appName.trim();
+  if (!name) {
+    return embedUrl;
+  }
+
+  try {
+    const parsed = new URL(embedUrl);
+    parsed.pathname = `/applications/argocd/${encodeURIComponent(name)}`;
+    parsed.search = "resource=";
+    parsed.hash = "";
+    return parsed.toString();
+  } catch {
+    const trimmed = embedUrl.trim().replace(/\/+$/, "");
+    const base = trimmed.includes("/applications") ? trimmed.replace(/\/applications.*$/, "/applications") : `${trimmed}/applications`;
+    return `${base}/argocd/${encodeURIComponent(name)}?resource=`;
+  }
+}
+
+export function buildServiceFolderPath(serviceName: string): string {
+  return `SVCS/${serviceName.trim()}`;
+}
+
+export function buildGithubFolderUrl(repoUrl: string, branch: string, folderPath: string): string {
+  const cleanedRepo = repoUrl.trim().replace(/\/+$/, "");
+  const cleanedBranch = branch.trim() || FALLBACK_GITHUB_BRANCH;
+  const cleanedPath = folderPath.trim().replace(/^\/+/, "");
+
+  return `${cleanedRepo}/tree/${encodeURIComponent(cleanedBranch)}/${cleanedPath}`;
+}
+
+function normalize(value: string): string {
+  return value.trim().toLowerCase();
+}
+
+export function syncTone(status: string): NodeTone {
+  const value = normalize(status);
+  if (value === "synced") {
+    return "good";
+  }
+  if (value === "outofsync" || value === "missing") {
+    return "bad";
+  }
+  if (value === "progressing" || value === "unknown") {
+    return "warn";
+  }
+  return "neutral";
+}
+
+export function healthTone(status: string): NodeTone {
+  const value = normalize(status);
+  if (value === "healthy") {
+    return "good";
+  }
+  if (value === "degraded" || value === "suspended" || value === "missing") {
+    return "bad";
+  }
+  if (value === "progressing" || value === "unknown") {
+    return "warn";
+  }
+  return "neutral";
+}
+
+export function dataSourceTone(source: string): NodeTone {
+  const value = normalize(source);
+  if (value === "argocd") {
+    return "good";
+  }
+  if (value === "config") {
+    return "warn";
+  }
+  if (value === "fallback") {
+    return "bad";
+  }
+  return "neutral";
+}
+
+export function formatTimestamp(value: string): string {
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) {
+    return value;
+  }
+  return parsed.toLocaleString();
+}
+
+export function optionalTimestamp(value: string | null): string {
+  if (!value) {
+    return "n/a";
+  }
+  return formatTimestamp(value);
+}
+
+export function shortRevision(revision: string): string {
+  const value = revision.trim();
+  if (!value) {
+    return "n/a";
+  }
+  if (/^[a-f0-9]{12,}$/i.test(value)) {
+    return value.slice(0, 12);
+  }
+  return value;
+}
+
+function buildFallbackUniverse(reason: string): PlexUniverse {
+  return {
+    generatedAt: new Date().toISOString(),
+    dataSource: "fallback",
+    galaxyName: "gargantua",
+    clusterPath: "KUBE/clusters/space/core",
+    servicesPath: "KUBE/clusters/space/gargantua",
+    warnings: [reason],
+    coreApps: [
+      {
+        name: "gargantua",
+        kind: "core",
+        namespace: "argocd",
+        syncStatus: "Unknown",
+        healthStatus: "Unknown",
+        sourcePath: "KUBE/clusters/space/core",
+        revision: "main",
+        deployedAt: null,
+        imageTag: null,
+        orbitBand: 0
+      }
+    ],
+    services: []
+  };
+}
+
+export async function loadUniverse(): Promise<PlexUniverse> {
+  const apiBase = resolveApiBase();
+  const endpoint = `${apiBase}/api/plex/universe`;
+
+  try {
+    const response = await fetch(endpoint, { cache: "no-store" });
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}`);
+    }
+
+    return (await response.json()) as PlexUniverse;
+  } catch (error) {
+    const reason = error instanceof Error ? error.message : "unknown error";
+    return buildFallbackUniverse(`Unable to reach ENDR API at ${endpoint}: ${reason}`);
+  }
+}
+
+export function sortByName(nodes: PlexNode[]): PlexNode[] {
+  return [...nodes].sort((left, right) => left.name.localeCompare(right.name));
+}
+
+export function hasAttention(node: PlexNode): boolean {
+  return syncTone(node.syncStatus) === "bad" || healthTone(node.healthStatus) === "bad";
+}
+
+export function findServiceByName(services: PlexNode[], name: string): PlexNode | undefined {
+  const expected = normalize(name);
+  return services.find((service) => normalize(service.name) === expected);
+}

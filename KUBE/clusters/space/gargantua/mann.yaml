@@ -9,6 +9,11 @@ spec:
     repoURL: https://github.com/calavelas/ENDR.git
     targetRevision: main
     path: SVCS/mann/chart
+    helm:
+      values: |
+        ingress:
+          enabled: true
+          host: mann.k8s.local
   destination:
     server: https://kubernetes.default.svc
     namespace: demo

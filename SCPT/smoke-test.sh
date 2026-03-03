@@ -6,8 +6,8 @@ MODE="${1:-all}"
 
 CLUSTER_NAME="${CLUSTER_NAME:-genesis-local}"
 ARGOCD_NAMESPACE="${ARGOCD_NAMESPACE:-argocd}"
-KYVERNO_NAMESPACE="${KYVERNO_NAMESPACE:-kyverno}"
-MONITORING_NAMESPACE="${MONITORING_NAMESPACE:-monitoring}"
+TRAEFIK_NAMESPACE="${TRAEFIK_NAMESPACE:-plt-traefik}"
+GATEWAY_NAMESPACE="${GATEWAY_NAMESPACE:-plt-gateway}"
 API_PORT="${API_PORT:-18000}"
 
 API_DIR="$ROOT_DIR/ENDR"
@@ -160,18 +160,32 @@ run_platform_checks() {
   log "verifying kubernetes context"
   kubectl config use-context "k3d-${CLUSTER_NAME}" >/dev/null
 
-  log "verifying required namespaces"
-  kubectl get ns ingress-nginx "${ARGOCD_NAMESPACE}" "${KYVERNO_NAMESPACE}" "${MONITORING_NAMESPACE}" >/dev/null
+  log "verifying required namespace"
+  kubectl get ns "${ARGOCD_NAMESPACE}" >/dev/null
 
   log "verifying ArgoCD server rollout"
   kubectl -n "${ARGOCD_NAMESPACE}" rollout status deploy/argocd-server --timeout=10m >/dev/null
 
-  log "verifying helm releases"
-  helm -n "${KYVERNO_NAMESPACE}" status kyverno >/dev/null
-  helm -n "${MONITORING_NAMESPACE}" status kube-prometheus-stack >/dev/null
-
   log "verifying ArgoCD bootstrap application"
   kubectl -n "${ARGOCD_NAMESPACE}" get application space >/dev/null
+
+  log "checking platform applications (non-blocking)"
+  for app in argocd-instance traefik plt-gateway; do
+    if kubectl -n "${ARGOCD_NAMESPACE}" get application "${app}" >/dev/null 2>&1; then
+      log "found application: ${app}"
+    else
+      log "application not found yet: ${app} (will appear after ArgoCD syncs latest Git revision)"
+    fi
+  done
+
+  log "checking platform namespaces (non-blocking)"
+  for ns in "${TRAEFIK_NAMESPACE}" "${GATEWAY_NAMESPACE}"; do
+    if kubectl get ns "${ns}" >/dev/null 2>&1; then
+      log "found namespace: ${ns}"
+    else
+      log "namespace not found yet: ${ns}"
+    fi
+  done
 
   log "platform smoke checks passed"
 }

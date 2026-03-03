@@ -5,8 +5,10 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 CLUSTER_NAME="${CLUSTER_NAME:-genesis-local}"
 K3D_API_PORT="${K3D_API_PORT:-6550}"
 ARGOCD_NAMESPACE="${ARGOCD_NAMESPACE:-argocd}"
-KYVERNO_NAMESPACE="${KYVERNO_NAMESPACE:-kyverno}"
-MONITORING_NAMESPACE="${MONITORING_NAMESPACE:-monitoring}"
+ARGOCD_HELM_CHART="${ARGOCD_HELM_CHART:-$ROOT_DIR/KUBE/platforms/argocd/helm}"
+ARGOCD_VALUES="${ARGOCD_VALUES:-$ARGOCD_HELM_CHART/values.yaml}"
+BOOTSTRAP_APP_FILE="${BOOTSTRAP_APP_FILE:-$ROOT_DIR/KUBE/clusters/space/space.yaml}"
+BOOTSTRAP_RESET_ARGOCD="${BOOTSTRAP_RESET_ARGOCD:-true}"
 
 log() {
   echo "[bootstrap] $*"
@@ -38,92 +40,91 @@ ensure_cluster() {
   kubectl config use-context "k3d-${CLUSTER_NAME}" >/dev/null
 }
 
-install_helm_repos() {
-  log "configuring helm repositories"
-  helm repo add ingress-nginx https://kubernetes.github.io/ingress-nginx >/dev/null 2>&1 || true
-  helm repo add kyverno https://kyverno.github.io/kyverno/ >/dev/null 2>&1 || true
-  helm repo add prometheus-community https://prometheus-community.github.io/helm-charts >/dev/null 2>&1 || true
-  helm repo update >/dev/null
-}
+install_argocd_from_chart() {
+  if [[ ! -d "$ARGOCD_HELM_CHART" ]]; then
+    log "missing ArgoCD chart directory: $ARGOCD_HELM_CHART"
+    exit 1
+  fi
 
-install_ingress() {
-  log "installing ingress-nginx"
-  helm upgrade --install ingress-nginx ingress-nginx/ingress-nginx \
-    --namespace ingress-nginx \
-    --create-namespace \
-    --wait \
-    --timeout 10m
-}
+  if [[ ! -f "$ARGOCD_VALUES" ]]; then
+    log "missing ArgoCD values file: $ARGOCD_VALUES"
+    exit 1
+  fi
 
-install_argocd() {
-  log "installing ArgoCD"
+  if [[ "${BOOTSTRAP_RESET_ARGOCD}" == "true" ]] && kubectl get namespace "$ARGOCD_NAMESPACE" >/dev/null 2>&1; then
+    log "resetting existing namespace '$ARGOCD_NAMESPACE' for deterministic GitOps bootstrap"
+    kubectl delete namespace "$ARGOCD_NAMESPACE" --wait=true --timeout=10m >/dev/null || true
+    for _ in $(seq 1 120); do
+      if ! kubectl get namespace "$ARGOCD_NAMESPACE" >/dev/null 2>&1; then
+        break
+      fi
+      sleep 2
+    done
+  fi
+
+  log "ensuring namespace '$ARGOCD_NAMESPACE'"
   kubectl create namespace "$ARGOCD_NAMESPACE" --dry-run=client -o yaml | kubectl apply -f - >/dev/null
-  kubectl apply --server-side --force-conflicts -n "$ARGOCD_NAMESPACE" -f \
-    https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml >/dev/null
+
+  local temp_manifest
+  temp_manifest="$(mktemp)"
+
+  log "rendering ArgoCD chart from repository"
+  helm template argocd "$ARGOCD_HELM_CHART" \
+    --namespace "$ARGOCD_NAMESPACE" \
+    -f "$ARGOCD_VALUES" > "$temp_manifest"
+
+  log "applying rendered ArgoCD manifests"
+  kubectl apply -n "$ARGOCD_NAMESPACE" -f "$temp_manifest" --server-side >/dev/null
+  rm -f "$temp_manifest"
+
+  log "waiting for ArgoCD components to be ready"
+  kubectl -n "$ARGOCD_NAMESPACE" rollout status statefulset/argocd-application-controller --timeout=10m >/dev/null
   kubectl -n "$ARGOCD_NAMESPACE" rollout status deploy/argocd-server --timeout=10m >/dev/null
 }
 
-install_kyverno() {
-  log "installing Kyverno"
-  helm upgrade --install kyverno kyverno/kyverno \
-    --namespace "$KYVERNO_NAMESPACE" \
-    --create-namespace \
-    --wait \
-    --timeout 10m
-}
-
-install_monitoring() {
-  log "installing kube-prometheus-stack"
-  helm upgrade --install kube-prometheus-stack prometheus-community/kube-prometheus-stack \
-    --namespace "$MONITORING_NAMESPACE" \
-    --create-namespace \
-    --wait \
-    --timeout 20m
-}
-
 apply_argocd_bootstrap() {
-  local bootstrap_file="$ROOT_DIR/KUBE/clusters/space/space.yaml"
-  if [[ ! -f "$bootstrap_file" ]]; then
-    log "missing file: $bootstrap_file"
+  if [[ ! -f "$BOOTSTRAP_APP_FILE" ]]; then
+    log "missing bootstrap application file: $BOOTSTRAP_APP_FILE"
     exit 1
   fi
 
   log "applying ArgoCD bootstrap application"
-  kubectl apply -f "$bootstrap_file" >/dev/null
+  kubectl apply -f "$BOOTSTRAP_APP_FILE" >/dev/null
 }
 
 print_summary() {
   local argocd_password=""
-  local grafana_password=""
 
   if kubectl -n "$ARGOCD_NAMESPACE" get secret argocd-initial-admin-secret >/dev/null 2>&1; then
     argocd_password="$(kubectl -n "$ARGOCD_NAMESPACE" get secret argocd-initial-admin-secret \
       -o go-template='{{index .data "password" | base64decode}}' 2>/dev/null || true)"
   fi
 
-  if kubectl -n "$MONITORING_NAMESPACE" get secret kube-prometheus-stack-grafana >/dev/null 2>&1; then
-    grafana_password="$(kubectl -n "$MONITORING_NAMESPACE" get secret kube-prometheus-stack-grafana \
-      -o go-template='{{index .data "admin-password" | base64decode}}' 2>/dev/null || true)"
-  fi
-
-  cat <<EOF
+  cat <<EOF_SUMMARY
 
 [bootstrap] completed
 [bootstrap] cluster context: k3d-${CLUSTER_NAME}
 
-URLs (after port-forward):
-- ArgoCD:  http://localhost:8080
-- Grafana: http://localhost:3000
+GitOps bootstrap:
+- Root application: space
+- Platform applications: argocd-instance, traefik, plt-gateway
+
+URLs:
+- ArgoCD (gateway):  https://argocd.k8s.local
+- ArgoCD (port-forward): https://127.0.0.1:18443
+- Services (gateway): https://mann.k8s.local, https://miller.k8s.local, https://edmund.k8s.local
 
 Commands:
-- make -f SCPT/Makefile port-forward
+- make -f SCPT/Makefile dev-start
+- make -f SCPT/Makefile port-forward-argocd
 
 Credentials:
 - ArgoCD username: admin
 - ArgoCD password: ${argocd_password:-<run kubectl -n ${ARGOCD_NAMESPACE} get secret argocd-initial-admin-secret>}
-- Grafana username: admin
-- Grafana password: ${grafana_password:-<run kubectl -n ${MONITORING_NAMESPACE} get secret kube-prometheus-stack-grafana>}
-EOF
+
+Hosts entries for local testing (if needed):
+- 127.0.0.1 argocd.k8s.local mann.k8s.local miller.k8s.local edmund.k8s.local
+EOF_SUMMARY
 }
 
 main() {
@@ -132,11 +133,7 @@ main() {
   require_cmd helm
 
   ensure_cluster
-  install_helm_repos
-  install_ingress
-  install_argocd
-  install_kyverno
-  install_monitoring
+  install_argocd_from_chart
   apply_argocd_bootstrap
   print_summary
 }

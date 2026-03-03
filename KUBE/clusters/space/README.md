@@ -7,5 +7,5 @@ This folder represents the space cluster desired state.
 
 ## Subfolders
 - `core/`: app-of-apps core definition consumed by ArgoCD bootstrap.
-- `endurance/`: platform service ArgoCD child applications (`KIPP`, `CASE`, etc.).
+- `endurance/`: platform-layer GitOps resources (Gateway API, TLS, platform apps).
 - `gargantua/`: one ArgoCD child `Application` manifest per service.

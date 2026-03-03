@@ -1,4 +1,4 @@
-.PHONY: bootstrap up down port-forward port-forward-argocd port-forward-grafana port-forward-prometheus api web validate-config smoke-test smoke-test-api smoke-test-platform svcs-check svcs-sync
+.PHONY: bootstrap up down port-forward port-forward-argocd port-forward-grafana port-forward-prometheus api web validate-config smoke-test smoke-test-api smoke-test-platform svcs-check svcs-sync dev-start dev-stop dev-restart dev-status dev-logs
 
 CLUSTER_NAME ?= genesis-local
 MAKEFILE_DIR := $(patsubst %/,%,$(dir $(abspath $(lastword $(MAKEFILE_LIST)))))
@@ -9,8 +9,9 @@ bootstrap:
 
 up:
 	@echo "Starting local dev processes..."
-	@echo "Run API: make -f SCPT/Makefile api"
-	@echo "Run Web: make -f SCPT/Makefile web"
+	@echo "Run stack: make -f SCPT/Makefile dev-start"
+	@echo "Stop stack: make -f SCPT/Makefile dev-stop"
+	@echo "Status: make -f SCPT/Makefile dev-status"
 
 api:
 	cd $(REPO_ROOT)/ENDR && uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
@@ -18,11 +19,26 @@ api:
 web:
 	cd $(REPO_ROOT)/CASE && npm run dev
 
+dev-start:
+	bash $(MAKEFILE_DIR)/dev-stack.sh start
+
+dev-stop:
+	bash $(MAKEFILE_DIR)/dev-stack.sh stop
+
+dev-restart:
+	bash $(MAKEFILE_DIR)/dev-stack.sh restart
+
+dev-status:
+	bash $(MAKEFILE_DIR)/dev-stack.sh status
+
+dev-logs:
+	bash $(MAKEFILE_DIR)/dev-stack.sh logs all
+
 down:
 	CLUSTER_NAME=$(CLUSTER_NAME) bash $(MAKEFILE_DIR)/down.sh
 
 port-forward:
-	bash $(MAKEFILE_DIR)/port-forward.sh all
+	bash $(MAKEFILE_DIR)/port-forward.sh argocd
 
 port-forward-argocd:
 	bash $(MAKEFILE_DIR)/port-forward.sh argocd

@@ -41,10 +41,7 @@ main() {
       pf_prometheus
       ;;
     all)
-      trap "kill 0" EXIT INT TERM
-      pf_argocd &
-      pf_grafana &
-      wait
+      pf_argocd
       ;;
     *)
       echo "usage: $0 [all|argocd|grafana|prometheus]"
@@ -54,4 +51,3 @@ main() {
 }
 
 main "$@"
-

@@ -9,6 +9,11 @@ spec:
     repoURL: https://github.com/calavelas/ENDR.git
     targetRevision: main
     path: SVCS/miller/chart
+    helm:
+      values: |
+        ingress:
+          enabled: true
+          host: miller.k8s.local
   destination:
     server: https://kubernetes.default.svc
     namespace: demo
