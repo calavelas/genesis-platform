@@ -13,8 +13,6 @@ on:
       - 'ENDR/pyproject.toml'
       - 'ENDR/PLEX/Dockerfile'
       - 'ENDR/CASE/Dockerfile'
-      - 'ENDR.yaml'
-      - 'SVCS.yaml'
       - '.dockerignore'
       - '.github/workflows/endr-build.yml'
   pull_request:
@@ -27,8 +25,6 @@ on:
       - 'ENDR/pyproject.toml'
       - 'ENDR/PLEX/Dockerfile'
       - 'ENDR/CASE/Dockerfile'
-      - 'ENDR.yaml'
-      - 'SVCS.yaml'
       - '.dockerignore'
       - '.github/workflows/endr-build.yml'
   workflow_dispatch:
