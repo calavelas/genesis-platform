@@ -288,65 +288,18 @@ jobs:
       startsWith(github.event.pull_request.title, 'CASE : Adding service :')
     runs-on: ubuntu-latest
     steps:
-      - name: Approve and enable auto-merge for CASE PR
+      - name: Approve and merge CASE PR
         uses: actions/github-script@v7
-        env:
-          DELETE_SOURCE_BRANCH_ON_MERGE: ${{ vars.TARS_DELETE_SOURCE_BRANCH_ON_MERGE != 'false' }}
         with:
           script: |
             const pr = context.payload.pull_request;
             const { owner, repo } = context.repo;
-            const sourceBranch = pr.head.ref;
-            const shouldDeleteSourceBranch = process.env.DELETE_SOURCE_BRANCH_ON_MERGE === "true";
 
             const body = String(pr.body || "");
             if (!body.includes("Registered by IDP API.")) {
               core.notice("Skipping CASE auto-accept: PR body marker not found.");
               return;
             }
-
-            const errorMessage = (error) => (error && error.message ? error.message : String(error));
-            const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
-
-            const deleteMergedSourceBranch = async () => {
-              if (!shouldDeleteSourceBranch) {
-                core.notice("Skipping branch deletion because vars.TARS_DELETE_SOURCE_BRANCH_ON_MERGE=false");
-                return;
-              }
-              try {
-                await github.rest.git.deleteRef({
-                  owner,
-                  repo,
-                  ref: `heads/${sourceBranch}`,
-                });
-                core.notice(`Deleted merged branch: ${sourceBranch}`);
-              } catch (error) {
-                if (error && (error.status === 404 || error.status === 422)) {
-                  core.notice(`Branch ${sourceBranch} was already absent.`);
-                  return;
-                }
-                core.warning(`Failed to delete merged branch ${sourceBranch}: ${errorMessage(error)}`);
-              }
-            };
-
-            const dispatchGenerateRun = async (mergedSha) => {
-              try {
-                await github.rest.actions.createWorkflowDispatch({
-                  owner,
-                  repo,
-                  workflow_id: "tars-build.yml",
-                  ref: "main",
-                  inputs: {
-                    write_worktree: "true",
-                  },
-                });
-                core.notice(
-                  `Dispatched TARS generate run on main after merge of PR #${pr.number}${mergedSha ? ` (sha ${mergedSha})` : ""}.`
-                );
-              } catch (error) {
-                core.warning(`Failed to dispatch post-merge TARS run: ${errorMessage(error)}`);
-              }
-            };
 
             const files = await github.paginate(github.rest.pulls.listFiles, {
               owner,
@@ -372,9 +325,10 @@ jobs:
               });
               core.notice(`Approved PR #${pr.number}.`);
             } catch (error) {
-              core.warning(`Approval step failed: ${errorMessage(error)}`);
+              core.warning(`Approval step failed: ${error.message}`);
             }
 
+            const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
             let latestPr = null;
             for (let attempt = 0; attempt < 8; attempt += 1) {
               const result = await github.rest.pulls.get({
@@ -395,31 +349,21 @@ jobs:
 
             if (latestPr.merged) {
               core.notice(`PR #${pr.number} is already merged.`);
-              await deleteMergedSourceBranch();
               return;
             }
 
-            let mergedNow = false;
-            let mergedSha = null;
             try {
-              const mergeResult = await github.rest.pulls.merge({
+              await github.rest.pulls.merge({
                 owner,
                 repo,
                 pull_number: pr.number,
                 merge_method: "squash",
                 sha: latestPr.head.sha,
               });
-              mergedNow = true;
-              mergedSha = mergeResult.data.sha || null;
               core.notice(`Merged PR #${pr.number} via direct merge.`);
-            } catch (error) {
-              core.notice(`Direct merge not ready for PR #${pr.number}: ${errorMessage(error)}`);
-            }
-
-            if (mergedNow) {
-              await dispatchGenerateRun(mergedSha);
-              await deleteMergedSourceBranch();
               return;
+            } catch (error) {
+              core.notice(`Direct merge not ready for PR #${pr.number}: ${error.message}`);
             }
 
             try {
@@ -447,26 +391,9 @@ jobs:
               core.notice(`Enabled auto-merge for PR #${pr.number}.`);
             } catch (error) {
               throw new Error(
-                `Unable to merge PR #${pr.number}. Direct merge failed and auto-merge could not be enabled: ${errorMessage(error)}`
+                `Unable to merge PR #${pr.number}. Direct merge failed and auto-merge could not be enabled: ${error.message}`
               );
             }
-
-            for (let attempt = 0; attempt < 45; attempt += 1) {
-              await sleep(2000);
-              const refreshed = await github.rest.pulls.get({
-                owner,
-                repo,
-                pull_number: pr.number,
-              });
-              if (refreshed.data.merged) {
-                core.notice(`PR #${pr.number} merged after enabling auto-merge.`);
-                await dispatchGenerateRun(refreshed.data.merge_commit_sha || null);
-                await deleteMergedSourceBranch();
-                return;
-              }
-            }
-
-            core.notice(`Auto-merge enabled for PR #${pr.number}; merged-branch cleanup will run on pull_request.closed event in this workflow.`);
 
   TARS-Cleanup-Branch:
     name: Cleanup Merged Source Branch
@@ -516,6 +443,7 @@ jobs:
       github.event.pull_request.merged == true &&
       github.event.pull_request.base.ref == 'main' &&
       github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.merged_by.login == 'github-actions[bot]' &&
       (
         startsWith(github.event.pull_request.title, 'TARS :') ||
         startsWith(github.event.pull_request.title, 'CASE : Adding service :') ||
@@ -539,29 +467,27 @@ jobs:
             }
 
             let matchedPushRun = null;
-            for (let attempt = 0; attempt < 5; attempt += 1) {
+            for (let attempt = 0; attempt < 20; attempt += 1) {
               const runs = await github.rest.actions.listWorkflowRuns({
                 owner,
                 repo,
                 workflow_id: "tars-build.yml",
                 branch: "main",
                 event: "push",
-                per_page: 30,
+                per_page: 50,
               });
-
               matchedPushRun = runs.data.workflow_runs.find((run) => run.head_sha === mergeCommitSha) || null;
-              if (matchedPushRun) {
-                break;
+              if (!matchedPushRun) {
+                await sleep(2000);
+                continue;
               }
-
-              await sleep(2000);
-            }
-
-            if (matchedPushRun) {
               const status = matchedPushRun.status;
               const conclusion = matchedPushRun.conclusion;
-              const healthy = status !== "completed" || conclusion === "success";
-              if (healthy) {
+              if (status !== "completed") {
+                await sleep(2000);
+                continue;
+              }
+              if (conclusion === "success") {
                 core.notice(
                   `Generate reconcile already covered by push run #${matchedPushRun.id} for ${mergeCommitSha}.`
                 );
@@ -570,7 +496,10 @@ jobs:
               core.notice(
                 `Push run #${matchedPushRun.id} for ${mergeCommitSha} concluded=${conclusion}; dispatching fallback generate run.`
               );
-            } else {
+              break;
+            }
+
+            if (!matchedPushRun) {
               core.notice(`No push-based TARS run found for merge commit ${mergeCommitSha}; dispatching generate run.`);
             }
 
