@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from fastapi.responses import HTMLResponse
 
-SERVICE_NAME = "test"
+SERVICE_NAME = "sample"
 app = FastAPI(title=SERVICE_NAME)
 
 
@@ -12,7 +12,7 @@ def landing() -> str:
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>test</title>
+    <title>sample</title>
     <style>
       body {
         font-family: Arial, sans-serif;
@@ -47,7 +47,7 @@ def landing() -> str:
   </head>
   <body>
     <main class="card">
-      <h1>test</h1>
+      <h1>sample</h1>
       <p>Service is up.</p>
       <p>Health endpoint: <code>/healthz</code></p>
     </main>

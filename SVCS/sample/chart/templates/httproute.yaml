@@ -2,7 +2,7 @@
 apiVersion: gateway.networking.k8s.io/v1
 kind: HTTPRoute
 metadata:
-  name: test-route
+  name: sample-route
   annotations:
     argocd.argoproj.io/ignore-healthcheck: "true"
 spec:
@@ -22,7 +22,7 @@ spec:
       backendRefs:
         - group: ""
           kind: Service
-          name: test
+          name: sample
           port: 80
           weight: 1
 {{- end }}

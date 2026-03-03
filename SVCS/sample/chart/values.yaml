@@ -1,5 +1,5 @@
 image:
-  repository: calavelas/test
+  repository: calavelas/sample
   tag: 0.1.0
   pullPolicy: IfNotPresent
 
@@ -23,4 +23,4 @@ httpRoute:
       name: gateway-cloudflare
       namespace: gateway
   hostnames:
-    - test.svcs.calavelas.net
+    - sample.svcs.calavelas.net
