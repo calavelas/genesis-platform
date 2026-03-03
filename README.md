@@ -43,13 +43,14 @@ Local-first GitOps Internal Developer Platform demo with:
 ### SVCS (Service) List
 
 <!-- TARS:SVCS_TABLE_START -->
-Total Services Running: 7
+Total Services Running: 8
 
 | Service Name | Template |
 | --- | --- |
 | case-e2e-build-dispatch-test | python-fastapi |
 | case-e2e-build-dispatch-verify | python-fastapi |
 | case-e2e-cleanup-test | python-fastapi |
+| case-e2e-force-seq-test | python-fastapi |
 | case-e2e-merge-test | python-fastapi |
 | case-e2e-svcs-order-test | python-fastapi |
 | cooper | python-fastapi |
