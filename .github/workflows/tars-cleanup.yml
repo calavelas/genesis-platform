@@ -16,6 +16,7 @@ jobs:
       github.event.pull_request.head.repo.full_name == github.repository &&
       (
         startsWith(github.event.pull_request.title, 'TARS :') ||
+        startsWith(github.event.pull_request.title, 'CASE : Adding service :') ||
         startsWith(github.event.pull_request.head.ref, 'idp/tars-svcs-check')
       )
     runs-on: ubuntu-latest

@@ -258,3 +258,81 @@ jobs:
           name: tars-svcs-state-${{ github.run_id }}
           path: ${{ steps.svcs_check.outputs.state_file }}
           if-no-files-found: error
+
+  CASE-Auto-Accept:
+    name: CASE Auto Accept PR
+    needs:
+      - TARS-Reconcile
+    if: >
+      github.event_name == 'pull_request' &&
+      github.event.pull_request.base.ref == 'main' &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      (
+        startsWith(github.event.pull_request.head.ref, 'case/') ||
+        startsWith(github.event.pull_request.head.ref, 'idp/')
+      ) &&
+      startsWith(github.event.pull_request.title, 'CASE : Adding service :')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Approve and enable auto-merge for CASE PR
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const pr = context.payload.pull_request;
+            const { owner, repo } = context.repo;
+
+            const body = String(pr.body || "");
+            if (!body.includes("Registered by IDP API.")) {
+              core.notice("Skipping CASE auto-accept: PR body marker not found.");
+              return;
+            }
+
+            const files = await github.paginate(github.rest.pulls.listFiles, {
+              owner,
+              repo,
+              pull_number: pr.number,
+              per_page: 100,
+            });
+            const changedPaths = files.map((item) => item.filename).sort();
+            if (changedPaths.length !== 1 || changedPaths[0] !== "SVCS.yaml") {
+              core.notice(
+                `Skipping CASE auto-accept: expected SVCS.yaml-only change, got [${changedPaths.join(", ")}]`
+              );
+              return;
+            }
+
+            try {
+              await github.rest.pulls.createReview({
+                owner,
+                repo,
+                pull_number: pr.number,
+                event: "APPROVE",
+                body: "Auto-approved by CASE policy (SVCS.yaml-only change).",
+              });
+              core.notice(`Approved PR #${pr.number}.`);
+            } catch (error) {
+              core.warning(`Approval step failed: ${error.message}`);
+            }
+
+            try {
+              await github.graphql(
+                `
+                mutation EnableAutoMerge($pullRequestId: ID!) {
+                  enablePullRequestAutoMerge(
+                    input: {
+                      pullRequestId: $pullRequestId
+                      mergeMethod: SQUASH
+                    }
+                  ) {
+                    pullRequest {
+                      number
+                    }
+                  }
+                }
+                `,
+                { pullRequestId: pr.node_id }
+              );
+              core.notice(`Enabled auto-merge for PR #${pr.number}.`);
+            } catch (error) {
+              core.warning(`Enable auto-merge failed: ${error.message}`);
+            }
