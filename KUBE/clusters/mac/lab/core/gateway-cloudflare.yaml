@@ -1,7 +1,7 @@
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: internet-gateway
+  name: gateway-cloudflare
   namespace: argocd
   annotations:
     argocd.argoproj.io/sync-wave: "4"
@@ -11,8 +11,6 @@ spec:
     repoURL: https://github.com/calavelas/ENDR.git
     targetRevision: main
     path: KUBE/clusters/mac/lab/gateway
-    directory:
-      include: "*cloudflare*.yaml"
   destination:
     server: https://kubernetes.default.svc
     namespace: gateway
