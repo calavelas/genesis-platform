@@ -97,3 +97,4 @@ services:
   overrides:
     gateway:
       enabled: true
+    image: calavelas/case-e2e-force-seq-test:09db46f

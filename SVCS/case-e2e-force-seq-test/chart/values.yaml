@@ -1,6 +1,6 @@
 image:
   repository: calavelas/case-e2e-force-seq-test
-  tag: 0.1.0
+  tag: 09db46f
   pullPolicy: IfNotPresent
 
 service:
