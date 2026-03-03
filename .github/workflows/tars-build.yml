@@ -290,6 +290,90 @@ jobs:
           script: |
             const pr = context.payload.pull_request;
             const { owner, repo } = context.repo;
+            const deleteSourceBranch = `${{ vars.TARS_DELETE_SOURCE_BRANCH_ON_MERGE }}` !== "false";
+            const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+            const loadPr = async () => {
+              const result = await github.rest.pulls.get({
+                owner,
+                repo,
+                pull_number: pr.number,
+              });
+              return result.data;
+            };
+
+            const tryDeleteBranch = async (branchRef) => {
+              if (!deleteSourceBranch) {
+                core.notice("Skipping branch deletion because vars.TARS_DELETE_SOURCE_BRANCH_ON_MERGE=false");
+                return;
+              }
+              try {
+                await github.rest.git.deleteRef({
+                  owner,
+                  repo,
+                  ref: `heads/${branchRef}`,
+                });
+                core.notice(`Deleted merged branch: ${branchRef}`);
+              } catch (error) {
+                if (error && (error.status === 404 || error.status === 422)) {
+                  core.notice(`Merged branch already absent: ${branchRef}`);
+                  return;
+                }
+                throw error;
+              }
+            };
+
+            const ensureGenerateReconcile = async (mergeCommitSha) => {
+              if (!mergeCommitSha) {
+                core.notice(`PR #${pr.number} has no merge commit SHA; dispatching generate reconcile defensively.`);
+              } else {
+                let matchedPushRun = null;
+                for (let attempt = 0; attempt < 20; attempt += 1) {
+                  const runs = await github.rest.actions.listWorkflowRuns({
+                    owner,
+                    repo,
+                    workflow_id: "tars-build.yml",
+                    branch: "main",
+                    event: "push",
+                    per_page: 50,
+                  });
+                  matchedPushRun = runs.data.workflow_runs.find((run) => run.head_sha === mergeCommitSha) || null;
+                  if (!matchedPushRun) {
+                    await sleep(2000);
+                    continue;
+                  }
+                  if (matchedPushRun.status !== "completed") {
+                    await sleep(2000);
+                    continue;
+                  }
+                  if (matchedPushRun.conclusion === "success") {
+                    core.notice(
+                      `Generate reconcile already covered by push run #${matchedPushRun.id} for ${mergeCommitSha}.`
+                    );
+                    return;
+                  }
+                  core.notice(
+                    `Push run #${matchedPushRun.id} for ${mergeCommitSha} concluded=${matchedPushRun.conclusion}; dispatching fallback generate run.`
+                  );
+                  break;
+                }
+
+                if (!matchedPushRun) {
+                  core.notice(`No push-based TARS run found for merge commit ${mergeCommitSha}; dispatching generate run.`);
+                }
+              }
+
+              await github.rest.actions.createWorkflowDispatch({
+                owner,
+                repo,
+                workflow_id: "tars-build.yml",
+                ref: "main",
+                inputs: {
+                  write_worktree: "true",
+                },
+              });
+              core.notice(`Dispatched TARS generate workflow_dispatch for merged PR #${pr.number}.`);
+            };
 
             const body = String(pr.body || "");
             if (!body.includes("Registered by IDP API.")) {
@@ -324,15 +408,9 @@ jobs:
               core.warning(`Approval step failed: ${error.message}`);
             }
 
-            const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
             let latestPr = null;
             for (let attempt = 0; attempt < 8; attempt += 1) {
-              const result = await github.rest.pulls.get({
-                owner,
-                repo,
-                pull_number: pr.number,
-              });
-              latestPr = result.data;
+              latestPr = await loadPr();
               if (latestPr.mergeable !== null) {
                 break;
               }
@@ -349,7 +427,7 @@ jobs:
             }
 
             try {
-              await github.rest.pulls.merge({
+              const mergeResult = await github.rest.pulls.merge({
                 owner,
                 repo,
                 pull_number: pr.number,
@@ -357,6 +435,8 @@ jobs:
                 sha: latestPr.head.sha,
               });
               core.notice(`Merged PR #${pr.number} via direct merge.`);
+              await tryDeleteBranch(pr.head.ref);
+              await ensureGenerateReconcile(mergeResult.data.sha || null);
               return;
             } catch (error) {
               core.notice(`Direct merge not ready for PR #${pr.number}: ${error.message}`);
@@ -390,3 +470,20 @@ jobs:
                 `Unable to merge PR #${pr.number}. Direct merge failed and auto-merge could not be enabled: ${error.message}`
               );
             }
+
+            let mergedPr = null;
+            for (let attempt = 0; attempt < 30; attempt += 1) {
+              const current = await loadPr();
+              if (current.merged) {
+                mergedPr = current;
+                break;
+              }
+              await sleep(3000);
+            }
+
+            if (!mergedPr) {
+              throw new Error(`Auto-merge was enabled for PR #${pr.number}, but merge did not complete in time.`);
+            }
+
+            await tryDeleteBranch(pr.head.ref);
+            await ensureGenerateReconcile(mergedPr.merge_commit_sha || null);
