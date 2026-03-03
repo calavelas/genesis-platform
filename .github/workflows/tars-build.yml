@@ -7,7 +7,6 @@ on:
     paths:
       - 'ENDR.yaml'
       - 'SVCS.yaml'
-      - '.github/workflows/tars-build.yml'
 
 permissions:
   contents: write

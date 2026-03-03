@@ -9,7 +9,6 @@ on:
     paths:
       - 'ENDR.yaml'
       - 'SVCS.yaml'
-      - '.github/workflows/tars-pr.yml'
 
 permissions:
   contents: write
