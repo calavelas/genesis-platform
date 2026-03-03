@@ -25,3 +25,15 @@ services:
     gateway:
       enabled: true
     image: calavelas/case-e2e-pr-test-20260304000108:5954af3
+- name: cooper
+  namespace: demo
+  environments:
+  - mac-lab
+  generator:
+    service:
+      template: python-fastapi
+    gitops:
+      template: helm-service
+  overrides:
+    gateway:
+      enabled: true
