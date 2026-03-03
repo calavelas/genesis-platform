@@ -1,7 +1,7 @@
 replicaCount: 1
 image:
   repository: calavelas/endr-api
-  tag: git-6ec51f5
+  tag: git-c1c23da
   pullPolicy: IfNotPresent
 service:
   type: ClusterIP
