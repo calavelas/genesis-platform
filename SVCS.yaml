@@ -25,3 +25,29 @@ services:
     gateway:
       enabled: true
     image: calavelas/cooper:0eb22a5
+- name: mann
+  namespace: demo
+  environments:
+  - mac-lab
+  generator:
+    service:
+      template: python-fastapi
+    gitops:
+      template: helm-service
+  overrides:
+    gateway:
+      enabled: true
+    image: calavelas/mann:2840d1e
+- name: edmund
+  namespace: demo
+  environments:
+  - mac-lab
+  generator:
+    service:
+      template: python-fastapi
+    gitops:
+      template: helm-service
+  overrides:
+    gateway:
+      enabled: true
+    image: calavelas/edmund:fcea25b
