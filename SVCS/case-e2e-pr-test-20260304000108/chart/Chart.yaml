@@ -1,0 +1,5 @@
+apiVersion: v2
+name: case-e2e-pr-test-20260304000108
+version: 0.1.0
+appVersion: "0.1.0"
+type: application
