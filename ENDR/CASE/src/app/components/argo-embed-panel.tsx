@@ -9,6 +9,7 @@ const DEFAULT_ZOOM = 100;
 
 interface ArgoEmbedPanelProps {
   embedUrl: string;
+  showHeader?: boolean;
 }
 
 function clampZoom(value: number): number {
@@ -21,7 +22,7 @@ function clampZoom(value: number): number {
   return value;
 }
 
-export function ArgoEmbedPanel({ embedUrl }: ArgoEmbedPanelProps) {
+export function ArgoEmbedPanel({ embedUrl, showHeader = true }: ArgoEmbedPanelProps) {
   const [zoomPercent, setZoomPercent] = useState<number>(DEFAULT_ZOOM);
 
   const scale = useMemo(() => zoomPercent / 100, [zoomPercent]);
@@ -36,10 +37,12 @@ export function ArgoEmbedPanel({ embedUrl }: ArgoEmbedPanelProps) {
 
   return (
     <section className="embed-panel">
-      <div className="embed-header">
-        <h2>Embedded ArgoCD Dashboard</h2>
-        <span>Read-only mode</span>
-      </div>
+      {showHeader && (
+        <div className="embed-header">
+          <h2 className="section-header-brand">ArgoCD Dashboard</h2>
+          <span>Read-only mode</span>
+        </div>
+      )}
 
       <div className="embed-toolbar" role="group" aria-label="argocd-zoom-controls">
         <button type="button" onClick={() => setZoomPercent((current) => clampZoom(current - STEP))}>
@@ -57,11 +60,6 @@ export function ArgoEmbedPanel({ embedUrl }: ArgoEmbedPanelProps) {
       <div className="argocd-frame-viewport">
         <iframe className="argocd-frame" style={frameStyle} src={embedUrl} title="Embedded ArgoCD" loading="lazy" />
       </div>
-
-      <p className="embed-note">
-        If the frame is blocked, ensure ArgoCD allows frame embedding from <code>https://case.calavelas.net</code>,{" "}
-        <code>https://endr.calavelas.net</code>, <code>127.0.0.1:3000</code>, and <code>localhost:3000</code>.
-      </p>
     </section>
   );
 }

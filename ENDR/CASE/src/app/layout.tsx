@@ -16,7 +16,7 @@ const jetbrainsMono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "CASE | ArgoCD Read-Only Portal",
+  title: "ENDR | Internal Developer Platform",
   description: "Modern ArgoCD-style read-only portal for ENDR"
 };
 

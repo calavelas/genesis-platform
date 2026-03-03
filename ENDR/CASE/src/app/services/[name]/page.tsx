@@ -44,6 +44,8 @@ export default async function ServiceDetailPage({ params }: ServiceDetailPagePro
   const serviceArgoUrl = buildArgoApplicationUrl(embedUrl, service.name);
   const serviceFolder = buildServiceFolderPath(service.name);
   const serviceGithubUrl = buildGithubFolderUrl(githubRepoUrl, githubBranch, serviceFolder);
+  const serviceAccessHost = `${service.name}.calavelas.net`;
+  const serviceAccessUrl = `https://${serviceAccessHost}`;
 
   return (
     <PortalFrame universe={universe}>
@@ -76,6 +78,14 @@ export default async function ServiceDetailPage({ params }: ServiceDetailPagePro
                 <dd>{service.namespace}</dd>
               </div>
               <div>
+                <dt>Access</dt>
+                <dd>
+                  <a className="entity-link" href={serviceAccessUrl} target="_blank" rel="noreferrer">
+                    {serviceAccessHost}
+                  </a>
+                </dd>
+              </div>
+              <div>
                 <dt>Source Path</dt>
                 <dd>
                   <code>{service.sourcePath}</code>
@@ -86,10 +96,6 @@ export default async function ServiceDetailPage({ params }: ServiceDetailPagePro
                 <dd>
                   <code>{serviceFolder}</code>
                 </dd>
-              </div>
-              <div>
-                <dt>Orbit Band</dt>
-                <dd>{service.orbitBand}</dd>
               </div>
               <div>
                 <dt>GitHub</dt>
@@ -135,18 +141,6 @@ export default async function ServiceDetailPage({ params }: ServiceDetailPagePro
               </div>
             </dl>
           </article>
-        </section>
-
-        <section className="panel">
-          <h2>ArgoCD Application</h2>
-          <p className="embed-note">
-            Embedded page for <strong>{service.name}</strong>. If embedding is blocked, use the direct link.
-          </p>
-          <p>
-            <a className="entity-link" href={serviceArgoUrl} target="_blank" rel="noreferrer">
-              {serviceArgoUrl}
-            </a>
-          </p>
         </section>
 
         {universe.warnings.length > 0 && (

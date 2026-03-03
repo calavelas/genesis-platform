@@ -10,10 +10,11 @@ interface NavItem {
 
 const NAV_ITEMS: NavItem[] = [
   { href: "/", label: "Home" },
-  { href: "/create", label: "Create" },
+  { href: "/argocd", label: "ArgoCD" },
   { href: "/services", label: "Application Services" },
   { href: "/platform-services", label: "Platform Services" },
-  { href: "/argocd", label: "ArgoCD" }
+  { href: "/create", label: "Create Service" },
+  { href: "/history", label: "Create Service History" }
 ];
 
 function isActive(pathname: string, href: string): boolean {

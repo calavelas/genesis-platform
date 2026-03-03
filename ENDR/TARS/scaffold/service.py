@@ -50,6 +50,9 @@ class CreateServiceRequest(BaseModel):
 class GeneratedFile(BaseModel):
     path: str
     size: int
+    content: str | None = None
+    contentEncoding: str | None = None
+    contentTruncated: bool = False
 
 
 class CreateServiceResponse(BaseModel):
@@ -60,6 +63,25 @@ class CreateServiceResponse(BaseModel):
     branchName: str | None = None
     pullRequestUrl: str | None = None
     pullRequestNumber: int | None = None
+
+
+_PREVIEW_MAX_BYTES = 128 * 1024
+
+
+def _build_generated_file(path: str, content: bytes, include_content: bool) -> GeneratedFile:
+    if not include_content:
+        return GeneratedFile(path=path, size=len(content))
+
+    preview = content[:_PREVIEW_MAX_BYTES]
+    truncated = len(content) > _PREVIEW_MAX_BYTES
+    text = preview.decode("utf-8", errors="replace")
+    return GeneratedFile(
+        path=path,
+        size=len(content),
+        content=text,
+        contentEncoding="utf-8",
+        contentTruncated=truncated,
+    )
 
 
 def _find_template(template_catalog: list[TemplateRef], template_name: str) -> TemplateRef:
@@ -424,7 +446,7 @@ def create_service(request: CreateServiceRequest) -> CreateServiceResponse:
         dryRun=request.dryRun,
         stagingPath=str(staging_root),
         generatedFiles=[
-            GeneratedFile(path=path, size=len(content))
+            _build_generated_file(path=path, content=content, include_content=request.dryRun)
             for path, content in sorted(commit_files.items(), key=lambda item: item[0])
         ],
     )

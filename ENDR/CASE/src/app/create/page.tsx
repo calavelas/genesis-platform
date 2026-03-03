@@ -10,8 +10,8 @@ export default async function CreatePage() {
 
   return (
     <PortalFrame universe={universe}>
-      <section className="portal-main">
-        <section className="hero-row">
+      <section className="portal-main create-main">
+        <section className="hero-row create-hero">
           <div>
             <p className="eyebrow">Templates</p>
             <h1>Create Service</h1>

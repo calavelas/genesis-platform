@@ -42,10 +42,14 @@ export default async function HomePage() {
       <section className="portal-main">
         <section className="hero-row">
           <div>
-            <p className="eyebrow">Read-only Operations</p>
-            <h1>Platform Overview</h1>
+            <h1 className="hero-title">
+              <span className="hero-title-name">ENDR</span>
+              <span className="hero-title-separator">|</span>
+              <span className="hero-title-purpose">Platform Overview</span>
+            </h1>
             <p className="hero-subtitle">
-              Unified read-only view for application services, platform services, sync/health status, and direct GitOps links.
+              ENDR is your platform control tower: launch services from templates, monitor application and platform health, and
+              jump directly into ArgoCD and GitHub to operate through GitOps.
             </p>
           </div>
           <div className="hero-actions">
@@ -89,7 +93,7 @@ export default async function HomePage() {
         )}
 
         <section className="panel section-header-panel" aria-label="services-header">
-          <h2>Application Services</h2>
+          <h2 className="section-header-brand">Application Services</h2>
         </section>
 
         <section className="panel service-table-wrap" aria-label="services-table">
@@ -168,7 +172,7 @@ export default async function HomePage() {
         </section>
 
         <section className="panel section-header-panel" aria-label="platform-apps-header">
-          <h2>Platform Services</h2>
+          <h2 className="section-header-brand">Platform Services</h2>
         </section>
 
         <section className="panel service-table-wrap" aria-label="platform-apps-table">
@@ -250,7 +254,11 @@ export default async function HomePage() {
           </table>
         </section>
 
-        <ArgoEmbedPanel embedUrl={embedUrl} />
+        <section className="panel section-header-panel" aria-label="argocd-dashboard-header">
+          <h2 className="section-header-brand">ArgoCD Dashboard</h2>
+        </section>
+
+        <ArgoEmbedPanel embedUrl={embedUrl} showHeader={false} />
       </section>
     </PortalFrame>
   );

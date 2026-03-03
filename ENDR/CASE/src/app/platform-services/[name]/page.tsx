@@ -82,10 +82,6 @@ export default async function PlatformServiceDetailPage({ params }: PlatformServ
                 </dd>
               </div>
               <div>
-                <dt>Orbit Band</dt>
-                <dd>{platformService.orbitBand}</dd>
-              </div>
-              <div>
                 <dt>GitHub</dt>
                 <dd>
                   {appGithubUrl ? (
