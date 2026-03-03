@@ -11,7 +11,7 @@ services:
   overrides:
     gateway:
       enabled: true
-    image: calavelas/sample:08a2bd3
+    image: calavelas/sample:47e65d3
 - name: cooper
   namespace: demo
   environments:
