@@ -10,6 +10,7 @@ on:
   workflow_dispatch:
 
 permissions:
+  actions: write
   contents: write
 
 jobs:
@@ -392,4 +393,44 @@ jobs:
             echo ""
             echo "#### File Changes"
             as_bullets_lines "${CHANGED_FILES}"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  trigger-svcs-build:
+    name: Trigger SVCS Build
+    needs:
+      - reconcile
+      - update
+      - push
+    if: >
+      always() &&
+      needs.reconcile.result == 'success' &&
+      needs.update.result == 'success' &&
+      (needs.push.result == 'success' || needs.push.result == 'skipped')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Dispatch SVCS workflow
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const { owner, repo } = context.repo;
+            await github.rest.actions.createWorkflowDispatch({
+              owner,
+              repo,
+              workflow_id: "svcs-build.yml",
+              ref: "main",
+            });
+            core.notice("Triggered svcs-build.yml on main.");
+
+      - name: Dispatch summary
+        run: |
+          set -euo pipefail
+          echo "::notice title=TARS Trigger SVCS::dispatched=true"
+          {
+            echo "### TARS Trigger SVCS Summary"
+            echo ""
+            echo "| Item | Value |"
+            echo "| --- | --- |"
+            echo "| Dispatched | \`true\` |"
+            echo "| Workflow | \`svcs-build.yml\` |"
+            echo "| Ref | \`main\` |"
           } >> "$GITHUB_STEP_SUMMARY"
