@@ -84,12 +84,28 @@ jobs:
           PY
 
       - name: Reconcile (check)
+        id: svcs_check
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           IDP_CONFIG_PATH: ${{ steps.config_compat.outputs.idp_config_path }}
         run: |
           set -euo pipefail
           python3 ENDR/TARS/TARS.py svcs-check --repo-root .
+
+      - name: Reconcile summary
+        run: |
+          set -euo pipefail
+          echo "::notice title=TARS PR Reconcile::pr=#${{ github.event.pull_request.number }}, changes=${{ steps.svcs_check.outputs.has_changes || 'unknown' }}, services=${{ steps.svcs_check.outputs.changed_service_count || '0' }}"
+          {
+            echo "### TARS PR Reconcile Summary"
+            echo ""
+            echo "| Item | Value |"
+            echo "| --- | --- |"
+            echo "| PR | \`#${{ github.event.pull_request.number }}\` |"
+            echo "| Changes detected | \`${{ steps.svcs_check.outputs.has_changes || 'unknown' }}\` |"
+            echo "| Changed services | \`${{ steps.svcs_check.outputs.changed_service_count || '0' }}\` |"
+            echo "| Changed files | \`${{ steps.svcs_check.outputs.changed_file_count || '0' }}\` |"
+          } >> "$GITHUB_STEP_SUMMARY"
 
   case-auto-merge:
     name: CASE Auto Merge
@@ -106,6 +122,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Approve and merge CASE PR
+        id: auto_merge
         uses: actions/github-script@v7
         with:
           script: |
@@ -113,10 +130,13 @@ jobs:
             const { owner, repo } = context.repo;
             const deleteSourceBranch = `${{ vars.TARS_DELETE_SOURCE_BRANCH_ON_MERGE }}` !== "false";
             const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+            core.setOutput("decision", "started");
+            core.setOutput("merged", "false");
 
             const body = String(pr.body || "");
             if (!body.includes("Registered by IDP API.")) {
               core.notice("Skipping CASE auto-merge: PR body marker not found.");
+              core.setOutput("decision", "skip-body-marker");
               return;
             }
 
@@ -131,6 +151,7 @@ jobs:
               core.notice(
                 `Skipping CASE auto-merge: expected SVCS.yaml-only change, got [${changedPaths.join(", ")}]`
               );
+              core.setOutput("decision", "skip-non-svcs-only");
               return;
             }
 
@@ -167,6 +188,8 @@ jobs:
 
             if (latestPr.merged) {
               core.notice(`PR #${pr.number} is already merged.`);
+              core.setOutput("decision", "already-merged");
+              core.setOutput("merged", "true");
             } else {
               try {
                 await github.rest.pulls.merge({
@@ -177,6 +200,8 @@ jobs:
                   sha: latestPr.head.sha,
                 });
                 core.notice(`Merged PR #${pr.number} via direct merge.`);
+                core.setOutput("decision", "merged-direct");
+                core.setOutput("merged", "true");
               } catch (error) {
                 core.notice(`Direct merge not ready for PR #${pr.number}: ${error.message}`);
                 await github.graphql(
@@ -201,6 +226,7 @@ jobs:
                   }
                 );
                 core.notice(`Enabled auto-merge for PR #${pr.number}.`);
+                core.setOutput("decision", "auto-merge-enabled");
               }
             }
 
@@ -227,6 +253,7 @@ jobs:
               core.notice(`PR #${pr.number} is not merged yet; skip branch deletion.`);
               return;
             }
+            core.setOutput("merged", "true");
 
             try {
               await github.rest.git.deleteRef({
@@ -242,3 +269,17 @@ jobs:
               }
               throw error;
             }
+
+      - name: Auto-merge summary
+        run: |
+          set -euo pipefail
+          echo "::notice title=TARS PR Auto Merge::pr=#${{ github.event.pull_request.number }}, decision=${{ steps.auto_merge.outputs.decision || 'n/a' }}, merged=${{ steps.auto_merge.outputs.merged || 'false' }}"
+          {
+            echo "### TARS PR Auto Merge Summary"
+            echo ""
+            echo "| Item | Value |"
+            echo "| --- | --- |"
+            echo "| PR | \`#${{ github.event.pull_request.number }}\` |"
+            echo "| Decision | \`${{ steps.auto_merge.outputs.decision || 'n/a' }}\` |"
+            echo "| Merged | \`${{ steps.auto_merge.outputs.merged || 'false' }}\` |"
+          } >> "$GITHUB_STEP_SUMMARY"
