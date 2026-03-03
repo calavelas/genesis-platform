@@ -9,6 +9,7 @@ import {
   sortByName,
   syncTone
 } from "../lib/plex";
+import { AutoRefresh } from "./auto-refresh";
 import { SidebarNav } from "./sidebar-nav";
 
 interface PortalFrameProps {
@@ -28,6 +29,8 @@ export function PortalFrame({ children, universe }: PortalFrameProps) {
 
   return (
     <main className="portal-shell">
+      <AutoRefresh />
+
       <header className="portal-topbar">
         <div className="topbar-brand">
           <span className="brand-dot" />

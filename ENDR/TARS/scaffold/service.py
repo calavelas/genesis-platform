@@ -322,7 +322,7 @@ def render_scaffold_for_service(
 
 def _build_branch_name(service_name: str) -> str:
     timestamp = datetime.now(tz=UTC).strftime("%Y%m%d%H%M%S")
-    return f"idp/{service_name}-{timestamp}"
+    return f"case/{service_name}-{timestamp}"
 
 
 def _validate_template_selection(

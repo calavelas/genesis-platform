@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { FormEvent, useEffect, useMemo, useState } from "react";
 
 interface TemplateOption {
@@ -34,6 +35,14 @@ interface CreateServiceResult {
 }
 
 const DNS_LABEL_RE = /^[a-z0-9]([-a-z0-9]*[a-z0-9])?$/;
+
+function buildServicePagePath(serviceName: string): string {
+  return `/services/${encodeURIComponent(serviceName.trim())}`;
+}
+
+function buildServicePublicUrl(serviceName: string): string {
+  return `https://${serviceName.trim()}.svcs.calavelas.net`;
+}
 
 function readErrorMessage(payload: unknown): string {
   if (typeof payload === "string") {
@@ -285,6 +294,27 @@ export function CreateServicePanel() {
             <div>
               <dt>Generated Files</dt>
               <dd>{result.generatedFiles.length}</dd>
+            </div>
+            <div>
+              <dt>Service Page</dt>
+              <dd>
+                <Link className="entity-link" href={buildServicePagePath(result.serviceName)}>
+                  {buildServicePagePath(result.serviceName)}
+                </Link>
+              </dd>
+            </div>
+            <div>
+              <dt>Service URL</dt>
+              <dd>
+                <a
+                  className="entity-link"
+                  href={buildServicePublicUrl(result.serviceName)}
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  {buildServicePublicUrl(result.serviceName)}
+                </a>
+              </dd>
             </div>
             <div>
               <dt>Pull Request</dt>
