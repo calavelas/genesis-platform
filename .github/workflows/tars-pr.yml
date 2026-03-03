@@ -18,6 +18,7 @@ concurrency:
   cancel-in-progress: true
 
 permissions:
+  actions: write
   contents: write
   pull-requests: write
 
@@ -144,10 +145,13 @@ jobs:
         id: auto_merge
         uses: actions/github-script@v7
         with:
+          github-token: ${{ secrets.CASE_AUTOMERGE_TOKEN != '' && secrets.CASE_AUTOMERGE_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
             const pr = context.payload.pull_request;
             const { owner, repo } = context.repo;
+            const deleteSourceBranch = `${{ vars.TARS_DELETE_SOURCE_BRANCH_ON_MERGE }}` !== "false";
             const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+            let merged = false;
             core.setOutput("decision", "started");
             core.setOutput("merged", "false");
 
@@ -199,6 +203,7 @@ jobs:
 
             if (latestPr.merged) {
               core.notice(`PR #${pr.number} is already merged.`);
+              merged = true;
               core.setOutput("decision", "already-merged");
               core.setOutput("merged", "true");
             } else {
@@ -211,6 +216,7 @@ jobs:
                   sha: latestPr.head.sha,
                 });
                 core.notice(`Merged PR #${pr.number} via direct merge.`);
+                merged = true;
                 core.setOutput("decision", "merged-direct");
                 core.setOutput("merged", "true");
               } catch (error) {
@@ -241,6 +247,30 @@ jobs:
               }
             }
 
+            if (!deleteSourceBranch) {
+              core.notice("Skipping branch deletion because vars.TARS_DELETE_SOURCE_BRANCH_ON_MERGE=false");
+              return;
+            }
+            if (!merged) {
+              core.notice(`PR #${pr.number} not merged in this run; skip direct branch deletion.`);
+              return;
+            }
+
+            try {
+              await github.rest.git.deleteRef({
+                owner,
+                repo,
+                ref: `heads/${pr.head.ref}`,
+              });
+              core.notice(`Deleted merged branch in auto-merge job: ${pr.head.ref}`);
+            } catch (error) {
+              if (error && (error.status === 404 || error.status === 422)) {
+                core.notice(`Merged branch already absent: ${pr.head.ref}`);
+                return;
+              }
+              throw error;
+            }
+
       - name: Auto-merge summary
         run: |
           set -euo pipefail
@@ -254,6 +284,26 @@ jobs:
             echo "| Decision | \`${{ steps.auto_merge.outputs.decision || 'n/a' }}\` |"
             echo "| Merged | \`${{ steps.auto_merge.outputs.merged || 'false' }}\` |"
           } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Auto-merge token warning
+        if: ${{ steps.auto_merge.outputs.merged == 'true' && secrets.CASE_AUTOMERGE_TOKEN == '' }}
+        run: |
+          set -euo pipefail
+          echo "::warning title=CASE auto-merge token fallback::Using GITHUB_TOKEN for merge can suppress downstream push workflows. Configure secrets.CASE_AUTOMERGE_TOKEN to avoid this."
+
+      - name: Trigger tars-build fallback
+        if: ${{ steps.auto_merge.outputs.merged == 'true' && secrets.CASE_AUTOMERGE_TOKEN == '' }}
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const { owner, repo } = context.repo;
+            await github.rest.actions.createWorkflowDispatch({
+              owner,
+              repo,
+              workflow_id: "tars-build.yml",
+              ref: "main",
+            });
+            core.notice("Triggered fallback dispatch for tars-build.yml on main.");
 
   cleanup-case-branch:
     name: Cleanup CASE Branch
@@ -270,6 +320,7 @@ jobs:
         id: delete_branch
         uses: actions/github-script@v7
         with:
+          github-token: ${{ secrets.CASE_AUTOMERGE_TOKEN != '' && secrets.CASE_AUTOMERGE_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
             const pr = context.payload.pull_request;
             const { owner, repo } = context.repo;
