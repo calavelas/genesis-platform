@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: edmund
+spec:
+  selector:
+    app.kubernetes.io/name: edmund
+  ports:
+    - port: 80
+      targetPort: 8080
+      protocol: TCP
+      name: http
