@@ -6,6 +6,7 @@ on:
       - opened
       - synchronize
       - reopened
+      - closed
     paths:
       - 'ENDR.yaml'
       - 'SVCS.yaml'
@@ -21,6 +22,7 @@ permissions:
 jobs:
   reconcile:
     name: Reconcile
+    if: github.event.action != 'closed'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -120,6 +122,17 @@ jobs:
       github.event.pull_request.state == 'open' &&
       github.event.pull_request.base.ref == 'main' &&
       github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.user.type == 'User' &&
+      (
+        (
+          vars.CASE_PR_AUTHOR != '' &&
+          github.event.pull_request.user.login == vars.CASE_PR_AUTHOR
+        ) ||
+        (
+          vars.CASE_PR_AUTHOR == '' &&
+          github.event.pull_request.user.login == github.repository_owner
+        )
+      ) &&
       startsWith(github.event.pull_request.head.ref, 'case/') &&
       startsWith(github.event.pull_request.title, 'CASE : Adding service :') &&
       contains(github.event.pull_request.body || '', 'Registered by IDP API.')
@@ -132,7 +145,6 @@ jobs:
           script: |
             const pr = context.payload.pull_request;
             const { owner, repo } = context.repo;
-            const deleteSourceBranch = `${{ vars.TARS_DELETE_SOURCE_BRANCH_ON_MERGE }}` !== "false";
             const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
             core.setOutput("decision", "started");
             core.setOutput("merged", "false");
@@ -227,46 +239,6 @@ jobs:
               }
             }
 
-            if (!deleteSourceBranch) {
-              core.notice("Skipping branch deletion because vars.TARS_DELETE_SOURCE_BRANCH_ON_MERGE=false");
-              return;
-            }
-
-            const loadPr = async () => {
-              const result = await github.rest.pulls.get({
-                owner,
-                repo,
-                pull_number: pr.number,
-              });
-              return result.data;
-            };
-
-            let mergedPr = await loadPr();
-            for (let attempt = 0; attempt < 20 && !mergedPr.merged; attempt += 1) {
-              await sleep(2000);
-              mergedPr = await loadPr();
-            }
-            if (!mergedPr.merged) {
-              core.notice(`PR #${pr.number} is not merged yet; skip branch deletion.`);
-              return;
-            }
-            core.setOutput("merged", "true");
-
-            try {
-              await github.rest.git.deleteRef({
-                owner,
-                repo,
-                ref: `heads/${pr.head.ref}`,
-              });
-              core.notice(`Deleted merged branch: ${pr.head.ref}`);
-            } catch (error) {
-              if (error && (error.status === 404 || error.status === 422)) {
-                core.notice(`Merged branch already absent: ${pr.head.ref}`);
-                return;
-              }
-              throw error;
-            }
-
       - name: Auto-merge summary
         run: |
           set -euo pipefail
@@ -279,4 +251,53 @@ jobs:
             echo "| PR | \`#${{ github.event.pull_request.number }}\` |"
             echo "| Decision | \`${{ steps.auto_merge.outputs.decision || 'n/a' }}\` |"
             echo "| Merged | \`${{ steps.auto_merge.outputs.merged || 'false' }}\` |"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  cleanup-case-branch:
+    name: Cleanup CASE Branch
+    if: >
+      github.event.action == 'closed' &&
+      github.event.pull_request.merged == true &&
+      github.event.pull_request.base.ref == 'main' &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      startsWith(github.event.pull_request.head.ref, 'case/')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Delete merged CASE branch
+        id: delete_branch
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const pr = context.payload.pull_request;
+            const { owner, repo } = context.repo;
+            core.setOutput("deleted", "false");
+            try {
+              await github.rest.git.deleteRef({
+                owner,
+                repo,
+                ref: `heads/${pr.head.ref}`,
+              });
+              core.notice(`Deleted merged branch: ${pr.head.ref}`);
+              core.setOutput("deleted", "true");
+            } catch (error) {
+              if (error && (error.status === 404 || error.status === 422)) {
+                core.notice(`Merged branch already absent: ${pr.head.ref}`);
+                core.setOutput("deleted", "already-absent");
+                return;
+              }
+              throw error;
+            }
+
+      - name: Cleanup summary
+        run: |
+          set -euo pipefail
+          echo "::notice title=TARS PR Cleanup::pr=#${{ github.event.pull_request.number }}, branch=${{ github.event.pull_request.head.ref }}, deleted=${{ steps.delete_branch.outputs.deleted || 'false' }}"
+          {
+            echo "### TARS PR Cleanup Summary"
+            echo ""
+            echo "| Item | Value |"
+            echo "| --- | --- |"
+            echo "| PR | \`#${{ github.event.pull_request.number }}\` |"
+            echo "| Branch | \`${{ github.event.pull_request.head.ref }}\` |"
+            echo "| Deleted | \`${{ steps.delete_branch.outputs.deleted || 'false' }}\` |"
           } >> "$GITHUB_STEP_SUMMARY"
