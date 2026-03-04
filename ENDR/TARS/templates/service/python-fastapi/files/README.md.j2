@@ -1,0 +1,23 @@
+# {{ service_name }}
+
+## Overview
+
+This service was created from the `python-fastapi` template in ENDR.
+
+## Access
+
+After `SVCS Build/Deploy` completes and ArgoCD sync is healthy, access this service at:
+
+- [https://{{ service_name }}.calavelas.net](https://{{ service_name }}.calavelas.net)
+
+## Runtime
+
+- Namespace: `{{ namespace }}`
+- Port: `{{ port }}`
+- Service Template: `python-fastapi`
+- GitOps Template: configured in `SVCS.yaml`
+
+## Notes
+
+- Source code is generated under `SVCS/{{ service_name }}/`.
+- Deployment resources are generated under `SVCS/{{ service_name }}/chart/`.

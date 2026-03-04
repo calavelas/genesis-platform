@@ -1,7 +1,6 @@
 "use client";
 
-import Link from "next/link";
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 
 interface TemplateOption {
   name: string;
@@ -90,6 +89,16 @@ interface TransactionStatusResult {
   };
 }
 
+interface PlexUniverseSnapshot {
+  generatedAt: string;
+  warnings: string[];
+  services: Array<{
+    name: string;
+    syncStatus: string;
+    healthStatus: string;
+  }>;
+}
+
 interface TemplateFileResult {
   templateType: "service" | "gitops";
   templateName: string;
@@ -109,10 +118,24 @@ interface FileViewerState {
   truncated?: boolean;
 }
 
+type PipelineStageStatus = "pending" | "running" | "success" | "failed";
+
+interface PipelineStageView {
+  key: "pr-check" | "reconcile" | "svcs-build";
+  label: string;
+  status: PipelineStageStatus;
+  detail: string;
+  run: TransactionWorkflowRun | null;
+}
+
 const DNS_LABEL_RE = /^[a-z0-9]([-a-z0-9]*[a-z0-9])?$/;
 
 function buildServicePagePath(serviceName: string): string {
-  return `/services/${encodeURIComponent(serviceName.trim())}`;
+  return `/application-services/${encodeURIComponent(serviceName.trim())}`;
+}
+
+function buildLocalServicePageUrl(serviceName: string): string {
+  return `http://localhost:3000${buildServicePagePath(serviceName)}`;
 }
 
 function buildServicePublicUrl(serviceName: string): string {
@@ -168,12 +191,138 @@ function formatPipelineStatus(status: TransactionStatusResult["pipeline"]["statu
 
 function formatWorkflowRunStatus(run: TransactionWorkflowRun | null): string {
   if (!run) {
-    return "not started";
+    return "pending";
   }
   if (run.status !== "completed") {
-    return run.status;
+    return run.status.replace(/_/g, " ");
   }
-  return run.conclusion ? `completed (${run.conclusion})` : "completed";
+  if (run.conclusion === "success") {
+    return "success";
+  }
+  return run.conclusion ? `failed (${run.conclusion})` : "failed";
+}
+
+function stageTone(status: PipelineStageStatus): "good" | "warn" | "bad" | "neutral" {
+  if (status === "success") {
+    return "good";
+  }
+  if (status === "running") {
+    return "warn";
+  }
+  if (status === "failed") {
+    return "bad";
+  }
+  return "neutral";
+}
+
+function formatStageStatus(status: PipelineStageStatus): string {
+  return status.charAt(0).toUpperCase() + status.slice(1);
+}
+
+function runStageFromWorkflow(run: TransactionWorkflowRun | null): PipelineStageStatus {
+  if (!run) {
+    return "pending";
+  }
+  if (run.status !== "completed") {
+    return "running";
+  }
+  return run.conclusion === "success" ? "success" : "failed";
+}
+
+function buildPipelineStages(status: TransactionStatusResult): PipelineStageView[] {
+  const prRun = status.pipeline.runs.prCheck;
+  const prStage = runStageFromWorkflow(prRun);
+  let prDetail = "Waiting for PR check workflow to start.";
+  if (prStage === "running") {
+    prDetail = "PR check workflow is running.";
+  } else if (prStage === "success") {
+    prDetail = "PR check workflow completed successfully.";
+  } else if (prStage === "failed") {
+    prDetail = `PR check workflow failed (${prRun?.conclusion || "unknown"}).`;
+  }
+
+  const reconcileRun = status.pipeline.runs.reconcileUpdate;
+  let reconcileStage: PipelineStageStatus = "pending";
+  let reconcileDetail = "Starts after PR merge.";
+  if (status.pullRequest.merged) {
+    reconcileStage = runStageFromWorkflow(reconcileRun);
+    if (reconcileStage === "pending") {
+      reconcileDetail = "Waiting for TARS reconcile/update workflow.";
+    } else if (reconcileStage === "running") {
+      reconcileDetail = "TARS reconcile/update workflow is running.";
+    } else if (reconcileStage === "success") {
+      reconcileDetail = "TARS reconcile/update workflow completed successfully.";
+    } else {
+      reconcileDetail = `TARS reconcile/update failed (${reconcileRun?.conclusion || "unknown"}).`;
+    }
+  }
+
+  const svcsRun = status.pipeline.runs.svcsBuildDeploy;
+  let svcsStage: PipelineStageStatus = "pending";
+  let svcsDetail = "Starts after PR merge.";
+  if (status.pullRequest.merged) {
+    if (reconcileStage !== "success") {
+      svcsStage = "pending";
+      svcsDetail = "Waiting for reconcile success.";
+    } else {
+      svcsStage = runStageFromWorkflow(svcsRun);
+      if (svcsStage === "pending") {
+        svcsDetail = "Waiting for SVCS build/deploy workflow.";
+      } else if (svcsStage === "running") {
+        svcsDetail = "SVCS build/deploy workflow is running.";
+      } else if (svcsStage === "success") {
+        svcsDetail = "SVCS build/deploy workflow completed successfully.";
+      } else {
+        svcsDetail = `SVCS build/deploy failed (${svcsRun?.conclusion || "unknown"}).`;
+      }
+    }
+  }
+
+  return [
+    {
+      key: "pr-check",
+      label: "PR Check",
+      status: prStage,
+      detail: prDetail,
+      run: prRun
+    },
+    {
+      key: "reconcile",
+      label: "TARS Reconcile/Update",
+      status: reconcileStage,
+      detail: reconcileDetail,
+      run: reconcileRun
+    },
+    {
+      key: "svcs-build",
+      label: "SVCS Build/Deploy",
+      status: svcsStage,
+      detail: svcsDetail,
+      run: svcsRun
+    }
+  ];
+}
+
+function isSvcsBuildSuccessful(status: TransactionStatusResult | null): boolean {
+  if (!status) {
+    return false;
+  }
+  if (status.pipeline.status === "success") {
+    return true;
+  }
+  const run = status.pipeline.runs.svcsBuildDeploy;
+  if (!run) {
+    return false;
+  }
+  return run.status === "completed" && run.conclusion === "success";
+}
+
+function hasServiceInUniverse(universe: PlexUniverseSnapshot, serviceName: string): boolean {
+  const expected = serviceName.trim().toLowerCase();
+  if (!expected) {
+    return false;
+  }
+  return universe.services.some((service) => service.name.trim().toLowerCase() === expected);
 }
 
 function buildPreviewSignature(payload: CreateServicePayload): string {
@@ -188,6 +337,7 @@ function buildPreviewSignature(payload: CreateServicePayload): string {
 }
 
 export function CreateServicePanel() {
+  const resultSectionRef = useRef<HTMLElement | null>(null);
   const [options, setOptions] = useState<CreateOptionsResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
@@ -205,11 +355,17 @@ export function CreateServicePanel() {
   const [fileViewer, setFileViewer] = useState<FileViewerState | null>(null);
   const [fileViewerLoading, setFileViewerLoading] = useState(false);
   const [fileViewerError, setFileViewerError] = useState("");
+  const [templatePreviewCollapsed, setTemplatePreviewCollapsed] = useState(false);
   const [previewCollapsed, setPreviewCollapsed] = useState(false);
   const [fileViewerCollapsed, setFileViewerCollapsed] = useState(false);
   const [result, setResult] = useState<CreateServiceResult | null>(null);
   const [transactionStatus, setTransactionStatus] = useState<TransactionStatusResult | null>(null);
   const [transactionStatusError, setTransactionStatusError] = useState("");
+  const [catalogRefreshStatus, setCatalogRefreshStatus] = useState<"idle" | "refreshing" | "success" | "failed">("idle");
+  const [catalogRefreshError, setCatalogRefreshError] = useState("");
+  const [catalogRefreshNote, setCatalogRefreshNote] = useState("");
+  const [catalogRefreshAttempts, setCatalogRefreshAttempts] = useState(0);
+  const [serviceVisibleInCatalog, setServiceVisibleInCatalog] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -290,6 +446,82 @@ export function CreateServicePanel() {
     };
   }, [result?.pullRequestNumber]);
 
+  useEffect(() => {
+    setCatalogRefreshStatus("idle");
+    setCatalogRefreshError("");
+    setCatalogRefreshNote("");
+    setCatalogRefreshAttempts(0);
+    setServiceVisibleInCatalog(false);
+  }, [result?.pullRequestNumber, result?.serviceName]);
+
+  useEffect(() => {
+    const service = result?.serviceName?.trim();
+    if (
+      !service ||
+      !isSvcsBuildSuccessful(transactionStatus) ||
+      serviceVisibleInCatalog ||
+      catalogRefreshStatus === "refreshing" ||
+      catalogRefreshStatus === "failed"
+    ) {
+      return;
+    }
+
+    let cancelled = false;
+    const maxAttempts = 10;
+    const intervalMs = 5_000;
+
+    const refreshUniverseUntilVisible = async () => {
+      setCatalogRefreshStatus("refreshing");
+      setCatalogRefreshError("");
+
+      for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+        if (cancelled) {
+          return;
+        }
+        setCatalogRefreshAttempts(attempt);
+        setCatalogRefreshNote(`Refreshing service catalog (${attempt}/${maxAttempts})...`);
+
+        try {
+          const response = await fetch(`/api/plex?t=${Date.now()}`, { cache: "no-store" });
+          const body = (await response.json().catch(() => ({}))) as unknown;
+          if (!response.ok) {
+            throw new Error(readErrorMessage(body));
+          }
+
+          const universe = body as PlexUniverseSnapshot;
+          if (hasServiceInUniverse(universe, service)) {
+            if (!cancelled) {
+              setServiceVisibleInCatalog(true);
+              setCatalogRefreshStatus("success");
+              setCatalogRefreshError("");
+              setCatalogRefreshNote(`Service visible in catalog (${new Date(universe.generatedAt).toLocaleString()}).`);
+            }
+            return;
+          }
+        } catch (error) {
+          if (!cancelled) {
+            const detail = error instanceof Error ? error.message : "unable to refresh service catalog";
+            setCatalogRefreshError(detail);
+          }
+        }
+
+        if (attempt < maxAttempts) {
+          await new Promise((resolve) => setTimeout(resolve, intervalMs));
+        }
+      }
+
+      if (!cancelled) {
+        setCatalogRefreshStatus("failed");
+        setCatalogRefreshNote("Service is not visible in catalog yet. Retry refresh after ArgoCD sync settles.");
+      }
+    };
+
+    void refreshUniverseUntilVisible();
+    return () => {
+      cancelled = true;
+    };
+  }, [catalogRefreshStatus, result?.serviceName, serviceVisibleInCatalog, transactionStatus]);
+
   const existingServices = useMemo(() => {
     return new Set((options?.existingServices ?? []).map((name) => name.toLowerCase()));
   }, [options]);
@@ -315,6 +547,10 @@ export function CreateServicePanel() {
     [environment, gatewayEnabled, gitopsTemplate, namespace, serviceName, serviceTemplate]
   );
   const isPreviewCurrent = Boolean(previewResult && lastPreviewSignature && lastPreviewSignature === currentPreviewSignature);
+  const pipelineStages = useMemo(
+    () => (transactionStatus ? buildPipelineStages(transactionStatus) : []),
+    [transactionStatus]
+  );
 
   function buildPayloadFromForm(): CreateServicePayload | null {
     const normalizedServiceName = serviceName.trim();
@@ -420,6 +656,11 @@ export function CreateServicePanel() {
     setResult(null);
     setTransactionStatus(null);
     setTransactionStatusError("");
+    setCatalogRefreshStatus("idle");
+    setCatalogRefreshError("");
+    setCatalogRefreshNote("");
+    setCatalogRefreshAttempts(0);
+    setServiceVisibleInCatalog(false);
     setLastPreviewSignature(null);
     setFileViewer(null);
     setFileViewerLoading(false);
@@ -460,10 +701,16 @@ export function CreateServicePanel() {
 
   async function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    resultSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
     setFormError("");
     setResult(null);
     setTransactionStatus(null);
     setTransactionStatusError("");
+    setCatalogRefreshStatus("idle");
+    setCatalogRefreshError("");
+    setCatalogRefreshNote("");
+    setCatalogRefreshAttempts(0);
+    setServiceVisibleInCatalog(false);
 
     const payload = buildPayloadFromForm();
     if (!payload) {
@@ -492,6 +739,7 @@ export function CreateServicePanel() {
 
       const created = body as CreateServiceResult;
       setResult(created);
+      resultSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
       setServiceName("");
       setPreviewResult(null);
       setLastPreviewSignature(null);
@@ -569,6 +817,90 @@ export function CreateServicePanel() {
               </select>
             </label>
 
+            <div className="field-span-2 create-template-preview-block">
+              <div className="panel-header-row">
+                <p className="create-template-preview-title">Template Preview</p>
+                <button
+                  type="button"
+                  className="open-link compact subtle"
+                  onClick={() => setTemplatePreviewCollapsed((value) => !value)}
+                  aria-expanded={!templatePreviewCollapsed}
+                >
+                  {templatePreviewCollapsed ? "Expand" : "Collapse"}
+                </button>
+              </div>
+
+              {templatePreviewCollapsed ? (
+                <p className="embed-note">Template preview is collapsed.</p>
+              ) : (
+                <section className="create-template-preview">
+                  <article className="create-template-card">
+                    <h3>Service Template Preview</h3>
+                    <p className="embed-note">
+                      <strong>{selectedServiceTemplate?.name ?? "n/a"}</strong>
+                    </p>
+                    {selectedServiceTemplate?.description && <p className="embed-note">{selectedServiceTemplate.description}</p>}
+                    {selectedServiceTemplate?.path && (
+                      <p className="embed-note">
+                        Path: <code>{selectedServiceTemplate.path}</code>
+                      </p>
+                    )}
+                    <ul className="template-file-list">
+                      {(selectedServiceTemplate?.previewFiles ?? []).map((file) => (
+                        <li key={`service-${file}`} className="template-file-item">
+                          <div className="template-file-row">
+                            <code>{file}</code>
+                            <button
+                              type="button"
+                              className="open-link compact subtle"
+                              onClick={() => void onOpenTemplateFile("service", selectedServiceTemplate?.name ?? "", file)}
+                              disabled={fileViewerLoading}
+                            >
+                              View
+                            </button>
+                          </div>
+                        </li>
+                      ))}
+                      {(selectedServiceTemplate?.previewFiles ?? []).length === 0 && <li>no template files found</li>}
+                    </ul>
+                    {selectedServiceTemplate?.previewNote && <p className="embed-note">{selectedServiceTemplate.previewNote}</p>}
+                  </article>
+
+                  <article className="create-template-card">
+                    <h3>GitOps Template Preview</h3>
+                    <p className="embed-note">
+                      <strong>{selectedGitopsTemplate?.name ?? "n/a"}</strong>
+                    </p>
+                    {selectedGitopsTemplate?.description && <p className="embed-note">{selectedGitopsTemplate.description}</p>}
+                    {selectedGitopsTemplate?.path && (
+                      <p className="embed-note">
+                        Path: <code>{selectedGitopsTemplate.path}</code>
+                      </p>
+                    )}
+                    <ul className="template-file-list">
+                      {(selectedGitopsTemplate?.previewFiles ?? []).map((file) => (
+                        <li key={`gitops-${file}`} className="template-file-item">
+                          <div className="template-file-row">
+                            <code>{file}</code>
+                            <button
+                              type="button"
+                              className="open-link compact subtle"
+                              onClick={() => void onOpenTemplateFile("gitops", selectedGitopsTemplate?.name ?? "", file)}
+                              disabled={fileViewerLoading}
+                            >
+                              View
+                            </button>
+                          </div>
+                        </li>
+                      ))}
+                      {(selectedGitopsTemplate?.previewFiles ?? []).length === 0 && <li>no template files found</li>}
+                    </ul>
+                    {selectedGitopsTemplate?.previewNote && <p className="embed-note">{selectedGitopsTemplate.previewNote}</p>}
+                  </article>
+                </section>
+              )}
+            </div>
+
             <label>
               Namespace
               <select value={namespace} onChange={(event) => setNamespace(event.target.value)} required>
@@ -628,7 +960,7 @@ export function CreateServicePanel() {
 
       <section className="panel create-side" aria-live="polite">
         <div className="panel-header-row">
-          <h2 className="section-header-brand">Generation Preview</h2>
+          <h2 className="section-header-brand">Generate Preview</h2>
           <button
             type="button"
             className="open-link compact subtle"
@@ -683,72 +1015,6 @@ export function CreateServicePanel() {
                 <p className="embed-note">Click <strong>Generate Preview</strong> to inspect files before creating the service.</p>
               </section>
             )}
-
-            <section className="create-template-preview">
-              <article className="create-template-card">
-                <h3>Service Template Preview</h3>
-                <p className="embed-note">
-                  <strong>{selectedServiceTemplate?.name ?? "n/a"}</strong>
-                </p>
-                {selectedServiceTemplate?.description && <p className="embed-note">{selectedServiceTemplate.description}</p>}
-                {selectedServiceTemplate?.path && (
-                  <p className="embed-note">
-                    Path: <code>{selectedServiceTemplate.path}</code>
-                  </p>
-                )}
-                <ul className="template-file-list">
-                  {(selectedServiceTemplate?.previewFiles ?? []).map((file) => (
-                    <li key={`service-${file}`} className="template-file-item">
-                      <div className="template-file-row">
-                        <code>{file}</code>
-                        <button
-                          type="button"
-                          className="open-link compact subtle"
-                          onClick={() => void onOpenTemplateFile("service", selectedServiceTemplate?.name ?? "", file)}
-                          disabled={fileViewerLoading}
-                        >
-                          View
-                        </button>
-                      </div>
-                    </li>
-                  ))}
-                  {(selectedServiceTemplate?.previewFiles ?? []).length === 0 && <li>no template files found</li>}
-                </ul>
-                {selectedServiceTemplate?.previewNote && <p className="embed-note">{selectedServiceTemplate.previewNote}</p>}
-              </article>
-
-              <article className="create-template-card">
-                <h3>GitOps Template Preview</h3>
-                <p className="embed-note">
-                  <strong>{selectedGitopsTemplate?.name ?? "n/a"}</strong>
-                </p>
-                {selectedGitopsTemplate?.description && <p className="embed-note">{selectedGitopsTemplate.description}</p>}
-                {selectedGitopsTemplate?.path && (
-                  <p className="embed-note">
-                    Path: <code>{selectedGitopsTemplate.path}</code>
-                  </p>
-                )}
-                <ul className="template-file-list">
-                  {(selectedGitopsTemplate?.previewFiles ?? []).map((file) => (
-                    <li key={`gitops-${file}`} className="template-file-item">
-                      <div className="template-file-row">
-                        <code>{file}</code>
-                        <button
-                          type="button"
-                          className="open-link compact subtle"
-                          onClick={() => void onOpenTemplateFile("gitops", selectedGitopsTemplate?.name ?? "", file)}
-                          disabled={fileViewerLoading}
-                        >
-                          View
-                        </button>
-                      </div>
-                    </li>
-                  ))}
-                  {(selectedGitopsTemplate?.previewFiles ?? []).length === 0 && <li>no template files found</li>}
-                </ul>
-                {selectedGitopsTemplate?.previewNote && <p className="embed-note">{selectedGitopsTemplate.previewNote}</p>}
-              </article>
-            </section>
           </>
         )}
       </section>
@@ -811,7 +1077,7 @@ export function CreateServicePanel() {
         )}
       </section>
 
-      <section className="panel transaction-panel" aria-live="polite">
+      <section ref={resultSectionRef} className="panel transaction-panel" aria-live="polite">
         <h2 className="section-header-brand">Result</h2>
         <p className="embed-note">After submit, CASE opens a branch and PR to append your service config in <code>SVCS.yaml</code>.</p>
 
@@ -836,9 +1102,20 @@ export function CreateServicePanel() {
               <div>
                 <dt>Service Page</dt>
                 <dd>
-                  <Link className="entity-link" href={buildServicePagePath(result.serviceName)}>
-                    {buildServicePagePath(result.serviceName)}
-                  </Link>
+                  {serviceVisibleInCatalog ? (
+                    <a
+                      className="entity-link"
+                      href={buildLocalServicePageUrl(result.serviceName)}
+                      target="_blank"
+                      rel="noreferrer"
+                    >
+                      {buildLocalServicePageUrl(result.serviceName)}
+                    </a>
+                  ) : isSvcsBuildSuccessful(transactionStatus) ? (
+                    <>waiting for catalog refresh...</>
+                  ) : (
+                    <>available after SVCS Build/Deploy succeeds</>
+                  )}
                 </dd>
               </div>
               <div>
@@ -887,6 +1164,36 @@ export function CreateServicePanel() {
             {transactionStatus && (
               <section className="transaction-live">
                 <p className="embed-note">{transactionStatus.pipeline.message}</p>
+                {isSvcsBuildSuccessful(transactionStatus) && (
+                  <p className="embed-note">
+                    {catalogRefreshStatus === "refreshing" && catalogRefreshNote}
+                    {catalogRefreshStatus === "success" && catalogRefreshNote}
+                    {catalogRefreshStatus === "failed" && (catalogRefreshNote || "Service catalog refresh did not complete yet.")}
+                    {catalogRefreshStatus === "idle" && "Waiting to refresh service catalog."}
+                    {catalogRefreshAttempts > 0 && catalogRefreshStatus === "refreshing" && ` Attempts: ${catalogRefreshAttempts}.`}
+                  </p>
+                )}
+                {catalogRefreshError && (
+                  <p className="form-error" role="alert">
+                    {catalogRefreshError}
+                  </p>
+                )}
+                {catalogRefreshStatus === "failed" && (
+                  <div className="form-actions">
+                    <button
+                      type="button"
+                      className="open-link compact subtle"
+                      onClick={() => {
+                        setCatalogRefreshStatus("idle");
+                        setCatalogRefreshError("");
+                        setCatalogRefreshNote("");
+                        setCatalogRefreshAttempts(0);
+                      }}
+                    >
+                      Retry Catalog Refresh
+                    </button>
+                  </div>
+                )}
                 {transactionStatus.pipeline.notifications.length > 0 && (
                   <ul className="transaction-notifications">
                     {transactionStatus.pipeline.notifications.map((note) => (
@@ -894,25 +1201,30 @@ export function CreateServicePanel() {
                     ))}
                   </ul>
                 )}
-                <ul className="transaction-workflows">
-                  {[
-                    { label: "PR Check", run: transactionStatus.pipeline.runs.prCheck },
-                    { label: "TARS Reconcile/Update", run: transactionStatus.pipeline.runs.reconcileUpdate },
-                    { label: "SVCS Build/Deploy", run: transactionStatus.pipeline.runs.svcsBuildDeploy }
-                  ].map(({ label, run }) => (
-                    <li key={label}>
-                      <span>{label}</span>
-                      {run?.htmlUrl ? (
-                        <a className="entity-link" href={run.htmlUrl} target="_blank" rel="noreferrer">
-                          {formatWorkflowRunStatus(run)}
-                        </a>
-                      ) : (
-                        <span>{formatWorkflowRunStatus(run)}</span>
-                      )}
-                      <span>{formatTimestamp(run?.updatedAt)}</span>
-                    </li>
-                  ))}
-                </ul>
+                <div className="pipeline-stages" role="list" aria-label="pipeline-stages">
+                  {pipelineStages.map((stage) => {
+                    const runTimestamp = stage.run?.updatedAt || stage.run?.createdAt || null;
+                    return (
+                      <article key={stage.key} className="pipeline-stage-item" role="listitem">
+                        <div className="pipeline-stage-header">
+                          <strong>{stage.label}</strong>
+                          <span className={`status-pill tone-${stageTone(stage.status)}`}>{formatStageStatus(stage.status)}</span>
+                        </div>
+                        <p className="embed-note">{stage.detail}</p>
+                        <div className="pipeline-stage-meta">
+                          {stage.run?.htmlUrl ? (
+                            <a className="entity-link" href={stage.run.htmlUrl} target="_blank" rel="noreferrer">
+                              {formatWorkflowRunStatus(stage.run)}
+                            </a>
+                          ) : (
+                            <span className="embed-note">run link available after workflow starts</span>
+                          )}
+                          <span className="embed-note">{runTimestamp ? formatTimestamp(runTimestamp) : "not started"}</span>
+                        </div>
+                      </article>
+                    );
+                  })}
+                </div>
               </section>
             )}
 

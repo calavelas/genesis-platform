@@ -28,7 +28,7 @@ export default async function ServiceHistoryPage({ params }: ServiceHistoryPageP
             <p className="hero-subtitle">CASE PR and pipeline lifecycle for this service.</p>
           </div>
           <Link className="open-link" href="/history">
-            Back to Create Service History
+            Back to History
           </Link>
         </section>
 

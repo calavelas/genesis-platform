@@ -1,4 +1,4 @@
-.PHONY: bootstrap up down port-forward port-forward-argocd port-forward-grafana port-forward-prometheus api web validate-config smoke-test smoke-test-api smoke-test-platform svcs-check svcs-sync dev-start dev-stop dev-restart dev-status dev-logs tunnel-login tunnel-create tunnel-route tunnel-setup tunnel-start tunnel-stop tunnel-restart tunnel-status tunnel-logs tunnel-render-config
+.PHONY: bootstrap up down port-forward port-forward-argocd port-forward-grafana port-forward-prometheus api web plex case validate-config smoke-test smoke-test-api smoke-test-platform svcs-check svcs-sync dev-start dev-stop dev-restart dev-status dev-logs tunnel-login tunnel-create tunnel-route tunnel-setup tunnel-start tunnel-stop tunnel-restart tunnel-status tunnel-logs tunnel-render-config
 
 CLUSTER_NAME ?= mac-lab
 MAKEFILE_DIR := $(patsubst %/,%,$(dir $(abspath $(lastword $(MAKEFILE_LIST)))))
@@ -8,18 +8,23 @@ bootstrap:
 	CLUSTER_NAME=$(CLUSTER_NAME) bash $(MAKEFILE_DIR)/bootstrap.sh
 
 up:
-	@echo "Starting local dev processes..."
+	@echo "Starting local CASE + PLEX dev processes..."
 	@echo "Run stack: make -f ENDR/SCPT/Makefile dev-start"
 	@echo "Stop stack: make -f ENDR/SCPT/Makefile dev-stop"
 	@echo "Status: make -f ENDR/SCPT/Makefile dev-status"
 
-api:
+api: plex
+
+web: case
+
+plex:
 	cd $(REPO_ROOT)/ENDR && uvicorn TARS.api.main:app --reload --host 0.0.0.0 --port 8000
 
-web:
-	cd $(REPO_ROOT)/ENDR/CASE && npm run dev
+case:
+	cd $(REPO_ROOT)/ENDR/CASE && ENDR_API_URL=http://127.0.0.1:8000 npm run dev
 
 dev-start:
+	@echo "[dev-start] launching local PLEX (API) + CASE (UI)..."
 	bash $(MAKEFILE_DIR)/dev-stack.sh start
 
 dev-stop:

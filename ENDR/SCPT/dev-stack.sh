@@ -9,10 +9,11 @@ REPO_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
 RUNTIME_DIR="${REPO_ROOT}/.idp/runtime/dev-stack"
 LOG_DIR="${RUNTIME_DIR}/logs"
 
-BACKEND_HOST="${BACKEND_HOST:-127.0.0.1}"
-BACKEND_PORT="${BACKEND_PORT:-8000}"
-FRONTEND_HOST="${FRONTEND_HOST:-127.0.0.1}"
-FRONTEND_PORT="${FRONTEND_PORT:-3000}"
+# Preferred names for local stack roles.
+PLEX_HOST="${PLEX_HOST:-${BACKEND_HOST:-127.0.0.1}}"
+PLEX_PORT="${PLEX_PORT:-${BACKEND_PORT:-8000}}"
+CASE_HOST="${CASE_HOST:-${FRONTEND_HOST:-127.0.0.1}}"
+CASE_PORT="${CASE_PORT:-${FRONTEND_PORT:-3000}}"
 ARGOCD_NAMESPACE="${ARGOCD_NAMESPACE:-argocd}"
 ARGOCD_LOCAL_PORT="${ARGOCD_LOCAL_PORT:-18443}"
 ARGOCD_REMOTE_PORT="${ARGOCD_REMOTE_PORT:-443}"
@@ -41,7 +42,7 @@ PLEX_ARGOCD_SERVER="${PLEX_ARGOCD_SERVER:-${ARGOCD_BASE_URL}}"
 PLEX_ARGOCD_TOKEN="${PLEX_ARGOCD_TOKEN:-}"
 PLEX_ARGOCD_VERIFY_TLS="${PLEX_ARGOCD_VERIFY_TLS:-false}"
 CASE_ARGOCD_EMBED_URL="${CASE_ARGOCD_EMBED_URL:-${ARGOCD_BASE_URL}/applications}"
-ENDR_API_URL="${ENDR_API_URL:-http://${BACKEND_HOST}:${BACKEND_PORT}}"
+ENDR_API_URL="${ENDR_API_URL:-http://${PLEX_HOST}:${PLEX_PORT}}"
 
 BACKEND_PID_FILE="${RUNTIME_DIR}/backend.pid"
 FRONTEND_PID_FILE="${RUNTIME_DIR}/frontend.pid"
@@ -165,10 +166,10 @@ print_status_line() {
 
 show_logs() {
   case "${LOG_TARGET}" in
-    backend)
+    plex|backend)
       tail -f "${BACKEND_LOG_FILE}"
       ;;
-    frontend)
+    case|frontend)
       tail -f "${FRONTEND_LOG_FILE}"
       ;;
     argocd)
@@ -182,7 +183,7 @@ show_logs() {
       fi
       ;;
     *)
-      echo "usage: $0 logs [all|backend|frontend|argocd]"
+      echo "usage: $0 logs [all|plex|case|argocd] (legacy: backend|frontend)"
       exit 1
       ;;
   esac
@@ -197,14 +198,14 @@ start_all() {
   fi
 
   start_process \
-    "backend" \
-    "cd '${REPO_ROOT}' && export PLEX_ARGOCD_SERVER='${PLEX_ARGOCD_SERVER}' && export PLEX_ARGOCD_TOKEN='${PLEX_ARGOCD_TOKEN}' && export PLEX_ARGOCD_VERIFY_TLS='${PLEX_ARGOCD_VERIFY_TLS}' && exec '${REPO_ROOT}/ENDR/.venv/bin/python' -m uvicorn TARS.api.main:app --reload --host '${BACKEND_HOST}' --port '${BACKEND_PORT}' --app-dir ENDR" \
+    "plex" \
+    "cd '${REPO_ROOT}' && export PLEX_ARGOCD_SERVER='${PLEX_ARGOCD_SERVER}' && export PLEX_ARGOCD_TOKEN='${PLEX_ARGOCD_TOKEN}' && export PLEX_ARGOCD_VERIFY_TLS='${PLEX_ARGOCD_VERIFY_TLS}' && exec '${REPO_ROOT}/ENDR/.venv/bin/python' -m uvicorn TARS.api.main:app --reload --host '${PLEX_HOST}' --port '${PLEX_PORT}' --app-dir ENDR" \
     "${BACKEND_PID_FILE}" \
     "${BACKEND_LOG_FILE}"
 
   start_process \
-    "frontend" \
-    "cd '${REPO_ROOT}/ENDR/CASE' && export ENDR_API_URL='${ENDR_API_URL}' && export CASE_ARGOCD_EMBED_URL='${CASE_ARGOCD_EMBED_URL}' && exec npm run dev -- --hostname '${FRONTEND_HOST}' --port '${FRONTEND_PORT}'" \
+    "case" \
+    "cd '${REPO_ROOT}/ENDR/CASE' && export ENDR_API_URL='${ENDR_API_URL}' && export CASE_ARGOCD_EMBED_URL='${CASE_ARGOCD_EMBED_URL}' && exec npm run dev -- --hostname '${CASE_HOST}' --port '${CASE_PORT}'" \
     "${FRONTEND_PID_FILE}" \
     "${FRONTEND_LOG_FILE}"
 
@@ -223,13 +224,13 @@ start_all() {
 
 stop_all() {
   stop_process "argocd-port-forward" "${ARGOCD_PID_FILE}"
-  stop_process "frontend" "${FRONTEND_PID_FILE}"
-  stop_process "backend" "${BACKEND_PID_FILE}"
+  stop_process "case" "${FRONTEND_PID_FILE}"
+  stop_process "plex" "${BACKEND_PID_FILE}"
 }
 
 status_all() {
-  print_status_line "backend" "${BACKEND_PID_FILE}" "-> http://${BACKEND_HOST}:${BACKEND_PORT}"
-  print_status_line "frontend" "${FRONTEND_PID_FILE}" "-> http://${FRONTEND_HOST}:${FRONTEND_PORT}"
+  print_status_line "plex" "${BACKEND_PID_FILE}" "-> http://${PLEX_HOST}:${PLEX_PORT}"
+  print_status_line "case" "${FRONTEND_PID_FILE}" "-> http://${CASE_HOST}:${CASE_PORT}"
   if argocd_port_forward_enabled; then
     print_status_line "argocd-port-forward" "${ARGOCD_PID_FILE}" "-> https://127.0.0.1:${ARGOCD_LOCAL_PORT}"
   else

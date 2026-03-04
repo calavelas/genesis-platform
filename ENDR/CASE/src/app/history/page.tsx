@@ -16,7 +16,7 @@ export default async function HistoryPage() {
         <section className="hero-row">
           <div>
             <p className="eyebrow">Audit</p>
-            <h1>Create Service History</h1>
+            <h1>History</h1>
             <p className="hero-subtitle">
               Tracks pull requests created by CASE UI using the title format <code>CASE - Adding service :</code>.
             </p>

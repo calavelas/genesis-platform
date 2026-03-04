@@ -436,7 +436,7 @@ export function HistoryPanel() {
                   <td>
                     {item.serviceName ? (
                       <div className="history-link-set">
-                        <Link className="entity-link" href={`/services/${encodeURIComponent(item.serviceName)}`}>
+                        <Link className="entity-link" href={`/application-services/${encodeURIComponent(item.serviceName)}`}>
                           Service
                         </Link>
                         <a

@@ -3,7 +3,7 @@
 `SCPT` contains local automation scripts and the main project `Makefile`.
 
 ## Key files
-- `Makefile`: primary command interface (`bootstrap`, `svcs-check`, `api`, `web`, smoke tests).
+- `Makefile`: primary command interface (`bootstrap`, `svcs-check`, `plex`, `case`, smoke tests).
 - `bootstrap.sh`: creates local cluster, installs ArgoCD from in-repo chart, and applies GitOps root app.
 - `dev-stack.sh`: starts/stops local backend + frontend with PID/log management, and can optionally run ArgoCD port-forward.
 - `validate-config.sh`: validates `ENDR.yaml` and `SVCS.yaml`.
@@ -45,6 +45,8 @@ bash ENDR/SCPT/dev-stack.sh stop
 Environment overrides:
 - `BACKEND_HOST`, `BACKEND_PORT`
 - `FRONTEND_HOST`, `FRONTEND_PORT`
+- `PLEX_HOST`, `PLEX_PORT`
+- `CASE_HOST`, `CASE_PORT`
 - `ENDR_API_URL`
 - `ENABLE_ARGOCD_PORT_FORWARD` (default `false`; set `true` to start `kubectl port-forward`)
 - `ARGOCD_NAMESPACE`, `ARGOCD_LOCAL_PORT`, `ARGOCD_REMOTE_PORT`

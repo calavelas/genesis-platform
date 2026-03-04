@@ -26,6 +26,8 @@ from TARS.config.paths import (
 DEFAULT_ARGOCD_SERVER = "https://argocd.k8s.local"
 DEFAULT_SVCS_CONFIG_BLOB_URL = "https://github.com/calavelas/ENDR/blob/main/SVCS.yaml"
 DEFAULT_SVCS_CONFIG_RAW_URL = "https://raw.githubusercontent.com/calavelas/ENDR/main/SVCS.yaml"
+DEFAULT_SERVICE_GATEWAY_SCHEME = "https"
+DEFAULT_SERVICE_GATEWAY_DOMAIN = "calavelas.net"
 MISSING_SERVICE_WARNING_PREFIX = "Service app '"
 MISSING_SERVICE_WARNING_SUFFIX = "' not found in ArgoCD response."
 
@@ -40,6 +42,9 @@ class PlexNode(BaseModel):
     revision: str
     deployedAt: str | None
     imageTag: str | None
+    templateName: str | None = None
+    gatewayEnabled: bool | None = None
+    serviceUrl: str | None = None
     orbitBand: int
 
 
@@ -137,6 +142,12 @@ def _safe_tag(image: str | None) -> str | None:
     return value.rsplit(":", 1)[1]
 
 
+def _build_service_url(service_name: str) -> str:
+    scheme = os.getenv("PLEX_SERVICE_GATEWAY_SCHEME", DEFAULT_SERVICE_GATEWAY_SCHEME).strip() or DEFAULT_SERVICE_GATEWAY_SCHEME
+    domain = os.getenv("PLEX_SERVICE_GATEWAY_DOMAIN", DEFAULT_SERVICE_GATEWAY_DOMAIN).strip() or DEFAULT_SERVICE_GATEWAY_DOMAIN
+    return f"{scheme}://{service_name.strip()}.{domain}"
+
+
 def _read_application_name(manifest_path: Path) -> str | None:
     try:
         import yaml
@@ -226,6 +237,9 @@ def _build_config_universe() -> PlexUniverse:
                 revision="main",
                 deployedAt=None,
                 imageTag=None,
+                templateName="Platform",
+                gatewayEnabled=False,
+                serviceUrl=None,
                 orbitBand=index,
             )
         )
@@ -243,6 +257,9 @@ def _build_config_universe() -> PlexUniverse:
                 revision="main",
                 deployedAt=None,
                 imageTag=_safe_tag(service.overrides.image),
+                templateName=service.generator.service.template,
+                gatewayEnabled=service.overrides.gateway.enabled,
+                serviceUrl=_build_service_url(service.name) if service.overrides.gateway.enabled else None,
                 orbitBand=(index % 4) + 1,
             )
         )
@@ -290,6 +307,9 @@ def _node_from_argocd_app(
     kind: str,
     orbit_band: int,
     fallback_namespace: str,
+    template_name: str | None = None,
+    gateway_enabled: bool | None = None,
+    service_url: str | None = None,
 ) -> PlexNode:
     metadata = app.get("metadata", {}) if isinstance(app, dict) else {}
     spec = app.get("spec", {}) if isinstance(app, dict) else {}
@@ -319,6 +339,9 @@ def _node_from_argocd_app(
         revision=str(sync.get("revision", "main")),
         deployedAt=operation_state.get("finishedAt"),
         imageTag=image_tag,
+        templateName=template_name,
+        gatewayEnabled=gateway_enabled,
+        serviceUrl=service_url,
         orbitBand=orbit_band,
     )
 
@@ -340,6 +363,9 @@ def _build_service_nodes(
                 kind="service",
                 orbit_band=(index % 4) + 1,
                 fallback_namespace=service.namespace,
+                template_name=service.generator.service.template,
+                gateway_enabled=service.overrides.gateway.enabled,
+                service_url=_build_service_url(service.name) if service.overrides.gateway.enabled else None,
             )
             if not node.imageTag:
                 node.imageTag = _safe_tag(service.overrides.image)
@@ -364,6 +390,9 @@ def _build_service_nodes(
                 revision="main",
                 deployedAt=None,
                 imageTag=_safe_tag(service.overrides.image),
+                templateName=service.generator.service.template,
+                gatewayEnabled=service.overrides.gateway.enabled,
+                serviceUrl=_build_service_url(service.name) if service.overrides.gateway.enabled else None,
                 orbitBand=(index % 4) + 1,
             )
         )
@@ -452,6 +481,9 @@ def build_plex_universe() -> PlexUniverse:
                 kind="core",
                 orbit_band=0,
                 fallback_namespace=DEFAULT_ARGOCD_NAMESPACE,
+                template_name="Platform",
+                gateway_enabled=False,
+                service_url=None,
             )
         )
 

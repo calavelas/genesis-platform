@@ -12,6 +12,9 @@ export interface PlexNode {
   revision: string;
   deployedAt: string | null;
   imageTag: string | null;
+  templateName?: string | null;
+  gatewayEnabled?: boolean | null;
+  serviceUrl?: string | null;
   orbitBand: number;
 }
 
@@ -30,6 +33,14 @@ const FALLBACK_API = "http://127.0.0.1:8000";
 const FALLBACK_EMBED_URL = "https://argocd.calavelas.net/applications";
 const FALLBACK_GITHUB_REPO_URL = "https://github.com/calavelas/ENDR";
 const FALLBACK_GITHUB_BRANCH = "main";
+
+function encodePathSegments(value: string): string {
+  return value
+    .split("/")
+    .filter((segment) => segment.length > 0)
+    .map((segment) => encodeURIComponent(segment))
+    .join("/");
+}
 
 function normalizeApiBase(base: string): string {
   return base.endsWith("/") ? base.slice(0, -1) : base;
@@ -88,7 +99,36 @@ export function buildGithubFolderUrl(repoUrl: string, branch: string, folderPath
   const cleanedBranch = branch.trim() || FALLBACK_GITHUB_BRANCH;
   const cleanedPath = folderPath.trim().replace(/^\/+/, "");
 
-  return `${cleanedRepo}/tree/${encodeURIComponent(cleanedBranch)}/${cleanedPath}`;
+  return `${cleanedRepo}/tree/${encodePathSegments(cleanedBranch)}/${encodePathSegments(cleanedPath)}`;
+}
+
+export function buildGithubFileUrl(repoUrl: string, branch: string, filePath: string): string {
+  const cleanedRepo = repoUrl.trim().replace(/\/+$/, "");
+  const cleanedBranch = branch.trim() || FALLBACK_GITHUB_BRANCH;
+  const cleanedPath = filePath.trim().replace(/^\/+/, "");
+
+  return `${cleanedRepo}/blob/${encodePathSegments(cleanedBranch)}/${encodePathSegments(cleanedPath)}`;
+}
+
+export function buildGithubRawFileUrl(repoUrl: string, branch: string, filePath: string): string {
+  const cleanedBranch = branch.trim() || FALLBACK_GITHUB_BRANCH;
+  const cleanedPath = filePath.trim().replace(/^\/+/, "");
+
+  try {
+    const parsed = new URL(repoUrl.trim());
+    if (parsed.hostname === "github.com") {
+      const parts = parsed.pathname.split("/").filter((part) => part.length > 0);
+      if (parts.length >= 2) {
+        const owner = encodeURIComponent(parts[0]);
+        const repo = encodeURIComponent(parts[1].replace(/\.git$/, ""));
+        return `https://raw.githubusercontent.com/${owner}/${repo}/${encodePathSegments(cleanedBranch)}/${encodePathSegments(cleanedPath)}`;
+      }
+    }
+  } catch {
+    // Fallback to blob URL if repository URL parsing fails.
+  }
+
+  return buildGithubFileUrl(repoUrl, cleanedBranch, cleanedPath);
 }
 
 function normalize(value: string): string {
@@ -182,6 +222,9 @@ function buildFallbackUniverse(reason: string): PlexUniverse {
         revision: "main",
         deployedAt: null,
         imageTag: null,
+        templateName: "Platform",
+        gatewayEnabled: false,
+        serviceUrl: null,
         orbitBand: 0
       }
     ],

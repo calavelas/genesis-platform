@@ -1,5 +1,7 @@
 # ENDR : Internal Developer Platform
 
+Checkout https://endr.calavelas.net/ for Demo
+
 GitOps Internal Developer Platform with Frontend UI Demo
 - GitHub as source of truth
 - ArgoCD app-of-apps deployment to local k3d

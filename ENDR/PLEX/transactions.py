@@ -315,6 +315,28 @@ def _select_run_after(runs: list[dict[str, Any]], workflow_file: str, threshold_
     return None
 
 
+def _select_run_for_sha(
+    runs: list[dict[str, Any]],
+    workflow_file: str,
+    expected_head_sha: str,
+    threshold_ms: float,
+) -> dict[str, Any] | None:
+    normalized_sha = expected_head_sha.strip()
+    if not normalized_sha:
+        return None
+
+    for run in runs:
+        if not _is_workflow_path(run, workflow_file):
+            continue
+        if str(run.get("head_sha") or "").strip() != normalized_sha:
+            continue
+        created_ms = _to_timestamp_ms(str(run.get("created_at") or ""))
+        if math.isfinite(threshold_ms) and math.isfinite(created_ms) and created_ms < threshold_ms:
+            continue
+        return run
+    return None
+
+
 def _select_pipeline_state(
     pull_request: TransactionPullRequest,
     pr_check_run: dict[str, Any] | None,
@@ -656,22 +678,37 @@ def _build_status_from_github(
     merged_threshold_ms = float("-inf")
     merged_at_ms = _to_timestamp_ms(pull.mergedAt)
     if math.isfinite(merged_at_ms):
-        merged_threshold_ms = merged_at_ms - 10 * 60_000
+        # Small tolerance for API timestamp variance while keeping stale runs out.
+        merged_threshold_ms = merged_at_ms - 30_000
 
     if pull.mergeCommitSha:
-        for run in main_runs:
-            if _is_workflow_path(run, "tars-build.yml") and str(run.get("head_sha") or "") == pull.mergeCommitSha:
-                reconcile_run = run
-                break
-    if not reconcile_run:
+        reconcile_run = _select_run_for_sha(
+            main_runs,
+            "tars-build.yml",
+            pull.mergeCommitSha,
+            merged_threshold_ms,
+        )
+    elif not reconcile_run:
         reconcile_run = _select_run_after(main_runs, "tars-build.yml", merged_threshold_ms)
 
-    svcs_threshold_ms = merged_threshold_ms
+    svcs_run: dict[str, Any] | None = None
     if reconcile_run:
+        svcs_threshold_ms = merged_threshold_ms
         reconcile_created_ms = _to_timestamp_ms(str(reconcile_run.get("created_at") or ""))
         if math.isfinite(reconcile_created_ms):
-            svcs_threshold_ms = reconcile_created_ms - 60_000
-    svcs_run = _select_run_after(main_runs, "svcs-build.yml", svcs_threshold_ms)
+            # SVCS build/deploy should start after current reconcile/update run starts.
+            svcs_threshold_ms = reconcile_created_ms + 1_000
+
+        reconcile_head_sha = str(reconcile_run.get("head_sha") or "").strip()
+        if reconcile_head_sha:
+            svcs_run = _select_run_for_sha(
+                main_runs,
+                "svcs-build.yml",
+                reconcile_head_sha,
+                svcs_threshold_ms,
+            )
+        if not svcs_run:
+            svcs_run = _select_run_after(main_runs, "svcs-build.yml", svcs_threshold_ms)
 
     pipeline_status, pipeline_message, notifications = _select_pipeline_state(
         pull,

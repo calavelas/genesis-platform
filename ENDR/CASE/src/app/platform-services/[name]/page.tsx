@@ -159,8 +159,8 @@ export default async function PlatformServiceDetailPage({ params }: PlatformServ
         <ArgoEmbedPanel embedUrl={appArgoUrl} />
 
         <p>
-          <Link className="entity-link" href="/platform-services">
-            Back to Platform Services
+          <Link className="entity-link" href="/catalog">
+            Back to Catalog
           </Link>
         </p>
       </section>
