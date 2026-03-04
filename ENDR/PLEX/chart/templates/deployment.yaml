@@ -24,6 +24,7 @@ spec:
           env:
 {{- range $name, $value := .Values.env }}
 {{- if and $.Values.argocdTokenSecret.enabled (eq $name "PLEX_ARGOCD_TOKEN") }}
+{{- else if and $.Values.githubTokenSecret.enabled (eq $name "GITHUB_TOKEN") }}
 {{- else }}
             - name: {{ $name }}
               value: {{ $value | quote }}
@@ -36,6 +37,14 @@ spec:
                   name: {{ .Values.argocdTokenSecret.name | quote }}
                   key: {{ .Values.argocdTokenSecret.key | quote }}
                   optional: {{ .Values.argocdTokenSecret.optional }}
+{{- end }}
+{{- if .Values.githubTokenSecret.enabled }}
+            - name: GITHUB_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.githubTokenSecret.name | quote }}
+                  key: {{ .Values.githubTokenSecret.key | quote }}
+                  optional: {{ .Values.githubTokenSecret.optional }}
 {{- end }}
           readinessProbe:
             httpGet:

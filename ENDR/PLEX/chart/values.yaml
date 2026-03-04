@@ -29,6 +29,11 @@ argocdTokenSecret:
   name: plex-argocd-token
   key: token
   optional: false
+githubTokenSecret:
+  enabled: true
+  name: plex-github-token
+  key: GITHUB_TOKEN
+  optional: false
 resources:
   requests:
     cpu: 100m
