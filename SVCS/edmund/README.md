@@ -1,4 +1,4 @@
-# cooper
+# edmund
 
 ## Overview
 
@@ -8,7 +8,7 @@ This service was created from the `python-fastapi` template in ENDR.
 
 After `SVCS Build/Deploy` completes and ArgoCD sync is healthy, access this service at:
 
-- [https://cooper.calavelas.net](https://cooper.calavelas.net)
+- [https://edmund.calavelas.net](https://edmund.calavelas.net)
 
 ## Runtime
 
@@ -19,5 +19,5 @@ After `SVCS Build/Deploy` completes and ArgoCD sync is healthy, access this serv
 
 ## Notes
 
-- Source code is generated under `SVCS/cooper/`.
-- Deployment resources are generated under `SVCS/cooper/chart/`.
+- Source code is generated under `SVCS/edmund/`.
+- Deployment resources are generated under `SVCS/edmund/chart/`.

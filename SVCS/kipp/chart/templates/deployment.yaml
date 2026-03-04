@@ -1,0 +1,31 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: kipp
+  labels:
+    app.kubernetes.io/name: kipp
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: kipp
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: kipp
+    spec:
+      containers:
+        - name: kipp
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          ports:
+            - containerPort: 8080
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: 8080
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 8080
+          resources:
+{{ toYaml .Values.resources | indent 12 }}
