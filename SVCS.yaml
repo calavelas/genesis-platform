@@ -64,3 +64,15 @@ services:
     gateway:
       enabled: true
     image: calavelas/miller:3a91ea2
+- name: murph
+  namespace: demo2
+  environments:
+  - mac-lab
+  generator:
+    service:
+      template: python-fastapi
+    gitops:
+      template: helm-service
+  overrides:
+    gateway:
+      enabled: true
