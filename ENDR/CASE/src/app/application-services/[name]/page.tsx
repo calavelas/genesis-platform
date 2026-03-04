@@ -3,6 +3,8 @@ export const revalidate = 0;
 
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 
 import { ArgoEmbedPanel } from "../../components/argo-embed-panel";
 import { PortalFrame } from "../../components/portal-frame";
@@ -178,9 +180,9 @@ export default async function ServiceDetailPage({ params }: ServiceDetailPagePro
               {serviceReadmeError}
             </p>
           ) : (
-            <pre className="service-readme-content">
-              <code>{serviceReadmeContent}</code>
-            </pre>
+            <div className="service-readme-content markdown-preview">
+              <ReactMarkdown remarkPlugins={[remarkGfm]}>{serviceReadmeContent}</ReactMarkdown>
+            </div>
           )}
         </section>
 

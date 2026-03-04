@@ -28,78 +28,28 @@ export default async function HomePage() {
       <section className="portal-main">
         <section className="hero-row platform-home-hero">
           <div className="platform-home-main">
-            <p className="eyebrow">Internal Developer Platform</p>
-            <h1 className="hero-title">
-              <span className="hero-title-name">ENDR</span>
-              <span className="hero-title-separator">|</span>
-              <span className="hero-title-purpose">Internal Developer Platform</span>
+            <h1 className="hero-landing-title">
+              <span className="hero-landing-brand">ENDR</span>
+              <span className="hero-landing-divider">|</span>
+              <span className="hero-landing-purpose">Internal Developer Platform</span>
             </h1>
-             <p className="hero-subtitle hero-story-copy">
-              "I should have you Backstage instead of Vibe coding these"
+            <p className="hero-landing-tagline">&ldquo;Damn&hellip; I should have used Backstage&rdquo;</p>
+            <p className="hero-landing-copy">
+              ENDR is an Internal Developer Platform demo built with OpenAI Codex. Powered by Next.js, GitHub, and ArgoCD, it provides a service catalog, application management, and platform insights.
             </p>
-            <p className="hero-subtitle hero-story-copy">
-              A Platform Engineering demo showing GitOps-driven IDP capabilities <br />
-              built with OpenAI Codex utilizing GitHub and ArgoCD.
-            </p>  
-            <p className="hero-subtitle hero-intro-copy">This platform demonstrates:</p>
-            <ul className="hero-feature-list hero-story-list">
-              <li>
-                <strong>GitHub as source of truth</strong>.
-              </li>
-              <li>
-                <strong>GitHub Actions</strong> for reconciliation, generation, build, and deploy workflow.
-              </li>
-              <li>
-                <strong>ArgoCD GitOps operations</strong> to sync app-of-apps into Kubernetes.
-              </li>
-            </ul>
-            <div className="hero-actions">
-              <Link className="open-link" href="/create">
-                + Create New Service
+            <figure className="hero-landing-quote">
+              <blockquote>&ldquo;Because manually deploying YAML at 2&nbsp;a.m. shouldn&rsquo;t be part of the developer experience.&rdquo;</blockquote>
+              <figcaption>&mdash; ChatGPT, 2026</figcaption>
+            </figure>
+            <div className="hero-actions hero-actions-landing">
+              <Link className="open-link hero-cta-primary" href="/create">
+                Try Create Service!
               </Link>
-              <a className="open-link" href={embedUrl} target="_blank" rel="noreferrer">
-                ArgoCD
-              </a>
-              <a className="open-link" href={githubRepoUrl} target="_blank" rel="noreferrer">
-                GitHub
+              <a className="open-link hero-cta-secondary" href={githubRepoUrl} target="_blank" rel="noreferrer">
+                View Source on GitHub
               </a>
             </div>
           </div>
-
-          <aside className="panel platform-flow-panel" aria-label="delivery-flow">
-            <h2 className="section-header-brand">Delivery Flow</h2>
-            <div className="flow-steps-vertical">
-              <div className="flow-step">
-                <span className="flow-step-num">1</span>
-                <strong>CASE</strong>
-                <span className="flow-step-desc">Create service &amp; open PR</span>
-              </div>
-              <span className="flow-arrow-down">↓</span>
-              <div className="flow-step">
-                <span className="flow-step-num">2</span>
-                <strong>GitHub</strong>
-                <span className="flow-step-desc">Source of truth</span>
-              </div>
-              <span className="flow-arrow-down">↓</span>
-              <div className="flow-step">
-                <span className="flow-step-num">3</span>
-                <strong>TARS</strong>
-                <span className="flow-step-desc">Reconcile &amp; generate</span>
-              </div>
-              <span className="flow-arrow-down">↓</span>
-              <div className="flow-step">
-                <span className="flow-step-num">4</span>
-                <strong>ArgoCD</strong>
-                <span className="flow-step-desc">GitOps sync</span>
-              </div>
-              <span className="flow-arrow-down">↓</span>
-              <div className="flow-step">
-                <span className="flow-step-num">5</span>
-                <strong>k3d</strong>
-                <span className="flow-step-desc">Runtime cluster</span>
-              </div>
-            </div>
-          </aside>
         </section>
 
         {universe.warnings.length > 0 && (
