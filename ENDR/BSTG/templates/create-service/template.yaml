@@ -1,0 +1,101 @@
+apiVersion: scaffolder.backstage.io/v1beta3
+kind: Template
+metadata:
+  name: endr-create-service
+  title: ENDR - Create Service
+  description: Create a new ENDR service by appending SVCS.yaml and opening a PR
+  tags:
+    - endr
+    - tars
+    - gitops
+spec:
+  owner: group:default/guests
+  type: service
+
+  parameters:
+    - title: Service Input
+      required:
+        - serviceName
+        - serviceTemplate
+        - gitopsTemplate
+        - namespace
+        - environment
+      properties:
+        serviceName:
+          title: Service Name
+          type: string
+          description: Kubernetes DNS label, max 48 chars
+          pattern: "^[a-z0-9]([-a-z0-9]*[a-z0-9])?$"
+          maxLength: 48
+        serviceTemplate:
+          title: Service Template
+          type: string
+          description: Should match a template from ENDR.yaml
+          default: python-fastapi
+        gitopsTemplate:
+          title: GitOps Template
+          type: string
+          description: Should match a gitops template from ENDR.yaml
+          default: helm-service
+        namespace:
+          title: Namespace
+          type: string
+          default: demo
+        environment:
+          title: Environment (Kubernetes)
+          type: string
+          default: mac-lab
+        gatewayEnabled:
+          title: Enable Gateway
+          type: boolean
+          default: true
+        tarsApiUrl:
+          title: ENDR API URL
+          type: string
+          default: http://127.0.0.1:8000
+          description: Base URL where /api/plex is reachable
+        caseBaseUrl:
+          title: CASE Base URL
+          type: string
+          default: https://case.calavelas.net
+          description: Used for service and history links in output
+
+  steps:
+    - id: loadOptions
+      name: Load ENDR options from PLEX API
+      action: endr:load-options
+      input:
+        apiBaseUrl: ${{ parameters.tarsApiUrl }}
+
+    - id: createService
+      name: Create service PR
+      action: endr:create-service
+      input:
+        apiBaseUrl: ${{ parameters.tarsApiUrl }}
+        serviceName: ${{ parameters.serviceName }}
+        serviceTemplate: ${{ parameters.serviceTemplate }}
+        gitopsTemplate: ${{ parameters.gitopsTemplate }}
+        namespace: ${{ parameters.namespace }}
+        environment: ${{ parameters.environment }}
+        gatewayEnabled: ${{ parameters.gatewayEnabled }}
+        caseBaseUrl: ${{ parameters.caseBaseUrl }}
+
+  output:
+    links:
+      - title: Pull Request
+        url: ${{ steps.createService.output.pullRequestUrl }}
+      - title: Service URL
+        url: ${{ steps.createService.output.serviceUrl }}
+      - title: Service Page
+        url: ${{ steps.createService.output.servicePageUrl }}
+      - title: Service History
+        url: ${{ steps.createService.output.historyPageUrl }}
+    text:
+      - title: PR Number
+        content: ${{ steps.createService.output.pullRequestNumber }}
+      - title: Branch
+        content: ${{ steps.createService.output.branchName }}
+      - title: Loaded Service Templates
+        content: ${{ steps.loadOptions.output.serviceTemplateNames }}
+      - title: Loaded GitOps Templates
+        content: ${{ steps.loadOptions.output.gitopsTemplateNames }}

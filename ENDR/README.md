@@ -7,6 +7,7 @@ It contains:
 - `TARS/`: automation engine/CLI and templates.
 - `SCPT/`: platform bootstrap/dev scripts.
 - `CASE/`: frontend portal UI.
+- `BSTG/`: Backstage alternative track (software templates + scaffolder action module).
 
 It acts as a thin wrapper over shared logic in `ENDR/TARS/`, and provides:
 - config validation for `ENDR.yaml` and `SVCS.yaml`
@@ -35,6 +36,10 @@ Current endpoints:
 - `GET /api/config/validate`
 - `GET /api/config`
 - `GET /api/plex` (powered by `PLEX` domain module)
+- `GET /api/plex/templates`
+- `POST /api/plex/services` (CASE/BSTG create-service flow)
+- `GET /api/plex/history`
+- `GET /api/plex/transactions/{pullRequestNumber}`
 - `POST /api/services` (supports `dryRun`)
 
 Optional env for live ArgoCD-backed portal data:

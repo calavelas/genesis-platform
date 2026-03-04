@@ -17,6 +17,7 @@ GitOps Internal Developer Platform with Frontend UI Demo
 - `.github/`: GitHub Actions workflows for reconcile, validation, and image publishing.
 - `ENDR/`: platform umbrella (backend runtime plus CASE, PLEX, SCPT, TARS).
 - `ENDR/CASE/`: frontend developer portal (Next.js).
+- `ENDR/BSTG/`: Backstage alternative track (templates + custom scaffolder actions).
 - `DOCS/`: architecture, setup, phase plans, and portfolio docs.
 - `ENDR/PLEX/`: backend portal domain module (`/api/plex`).
 - `KUBE/`: Kubernetes and GitOps infrastructure manifests (ArgoCD, policies, monitoring).

@@ -1,0 +1,9 @@
+apiVersion: backstage.io/v1alpha1
+kind: Location
+metadata:
+  name: endr-bstg-templates
+  description: ENDR Backstage software template catalog location
+spec:
+  targets:
+    - ./templates/create-service/template.yaml
+
