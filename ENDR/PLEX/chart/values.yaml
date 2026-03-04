@@ -1,7 +1,7 @@
 replicaCount: 1
 image:
   repository: calavelas/plex
-  tag: 05b6277
+  tag: 1eafdd3
   pullPolicy: IfNotPresent
 service:
   type: ClusterIP
