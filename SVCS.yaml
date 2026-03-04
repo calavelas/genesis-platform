@@ -51,3 +51,15 @@ services:
     gateway:
       enabled: true
     image: calavelas/edmund:fcea25b
+- name: miller
+  namespace: demo
+  environments:
+  - mac-lab
+  generator:
+    service:
+      template: python-fastapi
+    gitops:
+      template: helm-service
+  overrides:
+    gateway:
+      enabled: true
