@@ -11,7 +11,7 @@ services:
   overrides:
     gateway:
       enabled: true
-    image: calavelas/sample:47e65d3
+    image: calavelas/sample:34e1aab
 - name: cooper
   namespace: demo
   environments:
@@ -24,7 +24,7 @@ services:
   overrides:
     gateway:
       enabled: true
-    image: calavelas/cooper:0eb22a5
+    image: calavelas/cooper:34e1aab
 - name: mann
   namespace: demo
   environments:
@@ -37,7 +37,7 @@ services:
   overrides:
     gateway:
       enabled: true
-    image: calavelas/mann:2840d1e
+    image: calavelas/mann:34e1aab
 - name: edmund
   namespace: demo
   environments:
@@ -50,7 +50,7 @@ services:
   overrides:
     gateway:
       enabled: true
-    image: calavelas/edmund:fcea25b
+    image: calavelas/edmund:34e1aab
 - name: miller
   namespace: demo
   environments:
@@ -63,7 +63,7 @@ services:
   overrides:
     gateway:
       enabled: true
-    image: calavelas/miller:3a91ea2
+    image: calavelas/miller:34e1aab
 - name: murph
   namespace: demo2
   environments:
@@ -76,7 +76,7 @@ services:
   overrides:
     gateway:
       enabled: true
-    image: calavelas/murph:724309c
+    image: calavelas/murph:34e1aab
 - name: kipp
   namespace: demo
   environments:
@@ -89,3 +89,4 @@ services:
   overrides:
     gateway:
       enabled: true
+    image: calavelas/kipp:34e1aab

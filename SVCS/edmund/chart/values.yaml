@@ -1,6 +1,6 @@
 image:
   repository: calavelas/edmund
-  tag: fcea25b
+  tag: 34e1aab
   pullPolicy: IfNotPresent
 
 service:

@@ -1,6 +1,6 @@
 image:
   repository: calavelas/murph
-  tag: 724309c
+  tag: 34e1aab
   pullPolicy: IfNotPresent
 
 service:
