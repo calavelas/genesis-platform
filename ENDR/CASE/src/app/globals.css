@@ -2151,6 +2151,11 @@ code {
     align-content: start;
   }
 
+  .hero-landing-copy,
+  .hero-landing-quote {
+    max-width: 100%;
+  }
+
   .platform-flow-panel {
     border: 0;
     height: auto;
@@ -2208,12 +2213,60 @@ code {
   }
 
   .platform-home-main {
-    padding: 0.8rem;
+    padding: 1.05rem 1rem 1.2rem;
     height: auto;
     align-content: start;
+    gap: 0.9rem;
   }
 
   .hero-landing-title {
-    font-size: clamp(1.4rem, 6vw, 2rem);
+    font-size: clamp(1.85rem, 8.8vw, 2.35rem);
+    line-height: 1.08;
+    gap: 0.35rem;
+  }
+
+  .hero-landing-purpose {
+    font-size: 0.54em;
+    letter-spacing: 0.055em;
+  }
+
+  .hero-landing-tagline {
+    font-size: 0.92rem;
+  }
+
+  .hero-landing-copy {
+    max-width: 100%;
+    font-size: clamp(1.02rem, 4.9vw, 1.24rem);
+    line-height: 1.42;
+  }
+
+  .hero-landing-quote {
+    max-width: 100%;
+    padding: 0.5rem 0.62rem;
+  }
+
+  .hero-landing-quote blockquote {
+    font-size: 0.97rem;
+  }
+
+  .hero-landing-quote figcaption {
+    font-size: 0.82rem;
+  }
+
+  .hero-actions-landing {
+    width: 100%;
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 0.55rem;
+  }
+
+  .hero-actions-landing .open-link {
+    width: 100%;
+    min-height: 2.85rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.72rem 0.86rem;
+    font-size: 0.94rem;
   }
 }
