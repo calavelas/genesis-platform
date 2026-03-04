@@ -1,6 +1,6 @@
 image:
   repository: calavelas/cooper
-  tag: 34e1aab
+  tag: 0eb22a5
   pullPolicy: IfNotPresent
 
 service:

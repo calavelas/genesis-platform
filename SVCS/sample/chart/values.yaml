@@ -1,6 +1,6 @@
 image:
   repository: calavelas/sample
-  tag: 34e1aab
+  tag: 47e65d3
   pullPolicy: IfNotPresent
 
 service:

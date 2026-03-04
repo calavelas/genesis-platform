@@ -1,6 +1,6 @@
 image:
   repository: calavelas/miller
-  tag: 34e1aab
+  tag: 3a91ea2
   pullPolicy: IfNotPresent
 
 service:

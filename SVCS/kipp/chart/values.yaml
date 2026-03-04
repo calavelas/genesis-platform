@@ -1,6 +1,6 @@
 image:
   repository: calavelas/kipp
-  tag: 34e1aab
+  tag: 0.1.0
   pullPolicy: IfNotPresent
 
 service:
