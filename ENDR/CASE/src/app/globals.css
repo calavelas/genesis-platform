@@ -584,8 +584,8 @@ code {
 
 .hero-landing-title {
   margin: 0;
-  font-size: clamp(1.9rem, 4vw, 3.2rem);
-  line-height: 1.08;
+  font-size: clamp(2.2rem, 4.8vw, 3.9rem);
+  line-height: 1.05;
   letter-spacing: -0.03em;
   font-weight: 600;
   display: flex;
@@ -624,8 +624,8 @@ code {
 .hero-landing-copy {
   margin: 0;
   max-width: 65%;
-  font-size: clamp(0.95rem, 1.1vw, 1.05rem);
-  line-height: 1.6;
+  font-size: clamp(1.1rem, 1.55vw, 1.38rem);
+  line-height: 1.5;
   color: #8e8e9c;
 }
 
@@ -661,9 +661,9 @@ code {
 
 .hero-actions-landing .open-link {
   border-radius: var(--radius-sm);
-  font-size: 0.88rem;
+  font-size: 0.96rem;
   font-weight: 600;
-  padding: 0.62rem 1.2rem;
+  padding: 0.74rem 1.3rem;
   transition: all 0.18s ease;
 }
 
