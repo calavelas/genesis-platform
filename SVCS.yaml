@@ -63,3 +63,4 @@ services:
   overrides:
     gateway:
       enabled: true
+    image: calavelas/miller:3a91ea2
