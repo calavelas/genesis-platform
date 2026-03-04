@@ -77,3 +77,15 @@ services:
     gateway:
       enabled: true
     image: calavelas/murph:724309c
+- name: kipp
+  namespace: demo
+  environments:
+  - mac-lab
+  generator:
+    service:
+      template: python-fastapi
+    gitops:
+      template: helm-service
+  overrides:
+    gateway:
+      enabled: true
