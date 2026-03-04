@@ -76,3 +76,4 @@ services:
   overrides:
     gateway:
       enabled: true
+    image: calavelas/murph:724309c
