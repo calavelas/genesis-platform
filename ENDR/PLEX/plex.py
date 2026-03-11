@@ -84,6 +84,8 @@ def _resolve_svcs_config_url() -> str:
 def _fetch_remote_services_config(url: str) -> ServicesConfig:
     req = request.Request(url, method="GET")
     req.add_header("Accept", "text/plain")
+    req.add_header("Cache-Control", "no-cache")
+    req.add_header("Pragma", "no-cache")
 
     context: ssl.SSLContext | None = None
     parsed = parse.urlparse(url)
