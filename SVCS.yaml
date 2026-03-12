@@ -37,3 +37,4 @@ services:
   overrides:
     gateway:
       enabled: true
+    image: calavelas/miller:adcfff3
