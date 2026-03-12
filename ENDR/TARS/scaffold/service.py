@@ -360,7 +360,7 @@ def _validate_template_selection(
 
 
 def create_service(request: CreateServiceRequest) -> CreateServiceResponse:
-    idp_config, services_config, paths = load_all_configs()
+    idp_config, _services_config, paths = load_all_configs()
     repo_root = Path(paths.repoRoot)
     services_config_path = Path(paths.servicesConfigPath).resolve()
 
@@ -378,10 +378,6 @@ def create_service(request: CreateServiceRequest) -> CreateServiceResponse:
         service_template_name=service_template_name,
         gitops_template_name=gitops_template_name,
     )
-
-    for existing in services_config.services:
-        if existing.name == request.name:
-            raise ValueError(f"service already exists in SVCS.yaml: {request.name}")
 
     namespace = request.namespace or DEFAULT_SERVICE_NAMESPACE
     environments = request.environments if request.environments else [active_cluster_alias(idp_config)]
@@ -434,6 +430,7 @@ def create_service(request: CreateServiceRequest) -> CreateServiceResponse:
         base_branch = idp_config.config.git.defaultBranch
         remote_services_config = github_client.get_file_content(base_branch, relative_services_config)
         if remote_services_config is not None:
+            # Source of truth is SVCS.yaml on the repository default branch.
             commit_files[relative_services_config] = _render_updated_services_config_bytes(remote_services_config, service)
         else:
             commit_files[relative_services_config] = _render_updated_services_config(services_config_path, service)
