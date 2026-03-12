@@ -14,10 +14,10 @@ httpRoute:
   - case.k8s.local
   pathPrefix: /
   parentRefs:
-  - name: gateway
+  - name: gateway-traefik
     namespace: gateway
     sectionName: http
-  - name: gateway
+  - name: gateway-traefik
     namespace: gateway
     sectionName: https
 env:
