@@ -33,6 +33,7 @@ const FALLBACK_API = "http://127.0.0.1:8000";
 const FALLBACK_EMBED_URL = "https://argocd.calavelas.net/applications";
 const FALLBACK_GITHUB_REPO_URL = "https://github.com/calavelas/ENDR";
 const FALLBACK_GITHUB_BRANCH = "main";
+const FALLBACK_API_TIMEOUT_MS = 5000;
 
 function encodePathSegments(value: string): string {
   return value
@@ -49,6 +50,35 @@ function normalizeApiBase(base: string): string {
 export function resolveApiBase(): string {
   const base = process.env.ENDR_API_URL || process.env.NEXT_PUBLIC_ENDR_API_URL || FALLBACK_API;
   return normalizeApiBase(base);
+}
+
+function resolveApiTimeoutMs(): number {
+  const configured = Number(process.env.CASE_PLEX_FETCH_TIMEOUT_MS || process.env.NEXT_PUBLIC_CASE_PLEX_FETCH_TIMEOUT_MS);
+  if (Number.isFinite(configured) && configured >= 500) {
+    return Math.round(configured);
+  }
+  return FALLBACK_API_TIMEOUT_MS;
+}
+
+async function fetchJsonWithTimeout<T>(url: string): Promise<T> {
+  const controller = new AbortController();
+  const timeoutMs = resolveApiTimeoutMs();
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
+
+  try {
+    const response = await fetch(url, { cache: "no-store", signal: controller.signal });
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}`);
+    }
+    return (await response.json()) as T;
+  } catch (error) {
+    if (error instanceof Error && error.name === "AbortError") {
+      throw new Error(`timed out after ${timeoutMs}ms`);
+    }
+    throw error;
+  } finally {
+    clearTimeout(timeout);
+  }
 }
 
 export function resolveArgoEmbedUrl(): string {
@@ -237,12 +267,7 @@ export async function loadUniverse(): Promise<PlexUniverse> {
   const endpoint = `${apiBase}/api/plex`;
 
   try {
-    const response = await fetch(endpoint, { cache: "no-store" });
-    if (!response.ok) {
-      throw new Error(`HTTP ${response.status}`);
-    }
-
-    return (await response.json()) as PlexUniverse;
+    return await fetchJsonWithTimeout<PlexUniverse>(endpoint);
   } catch (error) {
     const reason = error instanceof Error ? error.message : "unknown error";
     return buildFallbackUniverse(`Unable to reach ENDR API at ${endpoint}: ${reason}`);

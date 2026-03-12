@@ -522,10 +522,6 @@ export function CreateServicePanel() {
     };
   }, [catalogRefreshStatus, result?.serviceName, serviceVisibleInCatalog, transactionStatus]);
 
-  const existingServices = useMemo(() => {
-    return new Set((options?.existingServices ?? []).map((name) => name.toLowerCase()));
-  }, [options]);
-
   const selectedServiceTemplate = useMemo(
     () => options?.serviceTemplates.find((template) => template.name === serviceTemplate) ?? null,
     [options, serviceTemplate]
@@ -560,10 +556,6 @@ export function CreateServicePanel() {
     }
     if (normalizedServiceName.length > 48 || !DNS_LABEL_RE.test(normalizedServiceName)) {
       setFormError("Service name must match Kubernetes DNS label format.");
-      return null;
-    }
-    if (existingServices.has(normalizedServiceName.toLowerCase())) {
-      setFormError(`Service '${normalizedServiceName}' already exists.`);
       return null;
     }
     if (!serviceTemplate) {
