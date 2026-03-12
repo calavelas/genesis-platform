@@ -225,26 +225,31 @@ export function ServiceHistoryPanel({ serviceName }: ServiceHistoryPanelProps) {
 
     let cancelled = false;
     let timer: ReturnType<typeof setInterval> | null = null;
-    const statusesToQuery = items.slice(0, 12);
+    const openTargets = items.filter((item) => item.state === "open");
+    const statusesToQuery = (openTargets.length > 0 ? openTargets : items).slice(0, 8);
+    const batchSize = 3;
 
     const loadTransactions = async () => {
       try {
-        const responses = await Promise.all(
-          statusesToQuery.map(async (item) => {
-            const response = await fetch(`/api/plex/transactions/${item.number}`, { cache: "no-store" });
-            const body = (await response.json().catch(() => ({}))) as unknown;
-            if (!response.ok) {
-              throw new Error(`#${item.number}: ${readErrorMessage(body)}`);
-            }
-            return { number: item.number, status: body as TransactionStatusResult };
-          })
-        );
-
-        if (!cancelled) {
-          const nextMap: Record<number, TransactionStatusResult> = {};
+        const nextMap: Record<number, TransactionStatusResult> = {};
+        for (let index = 0; index < statusesToQuery.length; index += batchSize) {
+          const batch = statusesToQuery.slice(index, index + batchSize);
+          const responses = await Promise.all(
+            batch.map(async (item) => {
+              const response = await fetch(`/api/plex/transactions/${item.number}`, { cache: "no-store" });
+              const body = (await response.json().catch(() => ({}))) as unknown;
+              if (!response.ok) {
+                throw new Error(`#${item.number}: ${readErrorMessage(body)}`);
+              }
+              return { number: item.number, status: body as TransactionStatusResult };
+            })
+          );
           for (const entry of responses) {
             nextMap[entry.number] = entry.status;
           }
+        }
+
+        if (!cancelled) {
           setTransactionMap(nextMap);
           setTransactionError("");
         }
@@ -258,10 +263,10 @@ export function ServiceHistoryPanel({ serviceName }: ServiceHistoryPanelProps) {
 
     void loadTransactions();
 
-    if (items.some((item) => item.state === "open")) {
+    if (openTargets.length > 0) {
       timer = setInterval(() => {
         void loadTransactions();
-      }, 20_000);
+      }, 45_000);
     }
 
     return () => {

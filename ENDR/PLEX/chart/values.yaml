@@ -24,6 +24,10 @@ env:
   IDP_REPO_ROOT: /workspace
   PLEX_ARGOCD_SERVER: http://argocd-server.argocd.svc.cluster.local
   PLEX_ARGOCD_VERIFY_TLS: 'false'
+  PLEX_TXN_STATUS_OPEN_CACHE_MS: '60000'
+  PLEX_TXN_STATUS_CLOSED_CACHE_MS: '900000'
+  PLEX_HISTORY_REFRESH_MAX_CANDIDATES: '3'
+  PLEX_HISTORY_REFRESH_STALE_MS: '600000'
 argocdTokenSecret:
   enabled: false
   name: plex-argocd-token

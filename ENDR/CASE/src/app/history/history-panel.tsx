@@ -221,26 +221,31 @@ export function HistoryPanel() {
 
     let cancelled = false;
     let timer: ReturnType<typeof setInterval> | null = null;
-    const targets = items.slice(0, 40);
+    const openTargets = items.filter((item) => item.state === "open");
+    const targets = (openTargets.length > 0 ? openTargets : items).slice(0, 12);
+    const batchSize = 4;
 
     const loadTransactions = async () => {
       try {
-        const responses = await Promise.all(
-          targets.map(async (item) => {
-            const response = await fetch(`/api/plex/transactions/${item.number}`, { cache: "no-store" });
-            const body = (await response.json().catch(() => ({}))) as unknown;
-            if (!response.ok) {
-              throw new Error(`#${item.number}: ${readErrorMessage(body)}`);
-            }
-            return { number: item.number, status: body as TransactionStatusResult };
-          })
-        );
-
-        if (!cancelled) {
-          const nextMap: Record<number, TransactionStatusResult> = {};
+        const nextMap: Record<number, TransactionStatusResult> = {};
+        for (let index = 0; index < targets.length; index += batchSize) {
+          const batch = targets.slice(index, index + batchSize);
+          const responses = await Promise.all(
+            batch.map(async (item) => {
+              const response = await fetch(`/api/plex/transactions/${item.number}`, { cache: "no-store" });
+              const body = (await response.json().catch(() => ({}))) as unknown;
+              if (!response.ok) {
+                throw new Error(`#${item.number}: ${readErrorMessage(body)}`);
+              }
+              return { number: item.number, status: body as TransactionStatusResult };
+            })
+          );
           for (const entry of responses) {
             nextMap[entry.number] = entry.status;
           }
+        }
+
+        if (!cancelled) {
           setTransactionMap(nextMap);
           setTransactionError("");
         }
@@ -254,10 +259,10 @@ export function HistoryPanel() {
 
     void loadTransactions();
 
-    if (items.some((item) => item.state === "open")) {
+    if (openTargets.length > 0) {
       timer = setInterval(() => {
         void loadTransactions();
-      }, 20_000);
+      }, 45_000);
     }
 
     return () => {

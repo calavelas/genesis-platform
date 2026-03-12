@@ -19,6 +19,10 @@ _GITHUB_API_BASE = "https://api.github.com"
 _STATE_VERSION = 1
 _STATE_RELATIVE_PATH = Path(".idp") / "plex" / "transactions-state.json"
 _STATE_LOCK = threading.Lock()
+_TXN_STATUS_OPEN_CACHE_MS = 60_000
+_TXN_STATUS_CLOSED_CACHE_MS = 15 * 60_000
+_HISTORY_REFRESH_MAX_CANDIDATES = 3
+_HISTORY_REFRESH_STALE_MS = 10 * 60_000
 
 
 class TransactionWorkflowRun(BaseModel):
@@ -122,6 +126,17 @@ def _now_iso() -> str:
 
 def _normalize(value: str) -> str:
     return value.strip().lower()
+
+
+def _env_int(name: str, default: int) -> int:
+    raw = os.getenv(name, "").strip()
+    if not raw:
+        return default
+    try:
+        parsed = int(raw)
+    except ValueError:
+        return default
+    return parsed if parsed >= 0 else default
 
 
 def _to_error_detail(payload: Any) -> str:
@@ -853,6 +868,16 @@ def get_case_transaction_status(pull_request_number: int) -> TransactionStatusRe
     if isinstance(existing, dict):
         submitted_raw = str(existing.get("submittedAt") or "").strip()
         submitted_at = submitted_raw or None
+        cached_status = _record_to_status(existing)
+        if cached_status:
+            now_ms = _to_timestamp_ms(_now_iso())
+            last_synced_ms = _to_timestamp_ms(str(existing.get("lastSyncedAt") or ""))
+            if math.isfinite(now_ms) and math.isfinite(last_synced_ms):
+                open_cache_ms = _env_int("PLEX_TXN_STATUS_OPEN_CACHE_MS", _TXN_STATUS_OPEN_CACHE_MS)
+                closed_cache_ms = _env_int("PLEX_TXN_STATUS_CLOSED_CACHE_MS", _TXN_STATUS_CLOSED_CACHE_MS)
+                ttl_ms = open_cache_ms if cached_status.pullRequest.state == "open" else closed_cache_ms
+                if now_ms - last_synced_ms <= ttl_ms:
+                    return cached_status
 
     try:
         status = _build_status_from_github(
@@ -1072,15 +1097,19 @@ def get_case_history(
         if len(filtered_items) >= safe_limit:
             break
 
-    # Refresh open or unknown records so History status/filters stay useful.
+    # Refresh a few open/unknown records so history remains useful without heavy fan-out.
     refresh_candidates: list[int] = []
+    max_refresh_candidates = _env_int("PLEX_HISTORY_REFRESH_MAX_CANDIDATES", _HISTORY_REFRESH_MAX_CANDIDATES)
+    stale_threshold_ms = _env_int("PLEX_HISTORY_REFRESH_STALE_MS", _HISTORY_REFRESH_STALE_MS)
+    if safe_limit >= 100:
+        max_refresh_candidates = min(max_refresh_candidates, 1)
     now_ms = _to_timestamp_ms(_now_iso())
     for item in filtered_items:
-        if len(refresh_candidates) >= 12:
+        if len(refresh_candidates) >= max_refresh_candidates:
             break
         record = transactions.get(str(item.number))
         last_synced = _to_timestamp_ms(str(record.get("lastSyncedAt") or "")) if isinstance(record, dict) else math.nan
-        stale = not math.isfinite(last_synced) or (math.isfinite(now_ms) and now_ms - last_synced > 2 * 60_000)
+        stale = not math.isfinite(last_synced) or (math.isfinite(now_ms) and now_ms - last_synced > stale_threshold_ms)
         if item.state == "open" or item.pipelineStatus is None or stale:
             refresh_candidates.append(item.number)
 
